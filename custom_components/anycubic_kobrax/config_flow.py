@@ -34,7 +34,7 @@ class AnycubicKobraXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
         config_entry: config_entries.ConfigEntry,
     ) -> AnycubicKobraXOptionsFlow:
         """Create the options flow."""
-        return AnycubicKobraXOptionsFlow(config_entry)
+        return AnycubicKobraXOptionsFlow()
 
     async def async_step_user(
         self, user_input: dict[str, Any] | None = None
@@ -81,10 +81,6 @@ class AnycubicKobraXConfigFlow(config_entries.ConfigFlow, domain=DOMAIN):
 
 class AnycubicKobraXOptionsFlow(config_entries.OptionsFlow):
     """Handle options for Anycubic Kobra X."""
-
-    def __init__(self, config_entry: config_entries.ConfigEntry) -> None:
-        """Initialize the options flow."""
-        self.config_entry = config_entry
 
     async def async_step_init(
         self, user_input: dict[str, Any] | None = None

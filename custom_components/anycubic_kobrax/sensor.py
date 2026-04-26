@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
+import logging
 from typing import Any
 
 from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
@@ -34,6 +35,8 @@ from .const import (
 )
 from .coordinator import AnycubicKobraXCoordinator
 from .entity import AnycubicKobraXEntity
+
+_LOGGER = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True, slots=True)
@@ -149,6 +152,7 @@ async def async_setup_entry(
 ) -> None:
     """Set up Anycubic Kobra X sensors."""
     coordinator: AnycubicKobraXCoordinator = entry.runtime_data
+    _LOGGER.info("Setting up %s Anycubic Kobra X sensors", len(SENSORS))
     async_add_entities(
         AnycubicKobraXSensor(coordinator, description) for description in SENSORS
     )
