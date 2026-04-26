@@ -41,9 +41,10 @@ does not work yet, set the path manually in options, for example:
 - MQTT connection to the printer on port `9883`
 - TLS with certificate validation disabled for the printer's self-signed cert
 - Periodic `status`, `info`, `tempature`, `fan`, `peripherie`, and `light`
-  queries
+  queries, plus `lastWill`, `multiColorBox`, and slicer `info`
 - Sensors for print state, progress, filename, nozzle temperature, bed
-  temperature, and target temperatures
+  temperature, target temperatures, fan speeds, material, layer, and timing
+- Diagnostic MQTT sensor exposing the last received topic and payload attributes
 - Brightness-capable light entity using Anycubic's `0-100` brightness scale
 - Camera entity that sends `startCapture`/`stopCapture` and exposes the FLV URL
   to Home Assistant's stream/ffmpeg pipeline

@@ -29,13 +29,24 @@
   },
   "entity": {
     "sensor": {
+      "last_will": { "name": "Last will" },
       "print_state": { "name": "Print state" },
       "progress": { "name": "Progress" },
       "filename": { "name": "Filename" },
+      "material": { "name": "Material" },
+      "print_speed": { "name": "Print speed" },
+      "remaining_time": { "name": "Remaining time" },
+      "total_time": { "name": "Total time" },
       "nozzle_temperature": { "name": "Nozzle temperature" },
       "bed_temperature": { "name": "Bed temperature" },
       "target_nozzle_temperature": { "name": "Target nozzle temperature" },
-      "target_bed_temperature": { "name": "Target bed temperature" }
+      "target_bed_temperature": { "name": "Target bed temperature" },
+      "fan_speed": { "name": "Fan speed" },
+      "aux_fan_speed": { "name": "Aux fan speed" },
+      "box_fan_speed": { "name": "Box fan speed" },
+      "layer": { "name": "Layer" },
+      "total_layer": { "name": "Total layer" },
+      "last_mqtt_message": { "name": "Last MQTT message" }
     },
     "light": {
       "light": { "name": "Light" }
