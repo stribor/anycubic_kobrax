@@ -1,0 +1,47 @@
+{
+  "config": {
+    "step": {
+      "user": {
+        "title": "Anycubic Kobra X",
+        "description": "Connect to the printer's local MQTT broker. The first version requires the printer type ID and printer ID.",
+        "data": {
+          "host": "Printer host or IP",
+          "type_id": "Type ID",
+          "printer_id": "Printer ID",
+          "mqtt_username": "MQTT username",
+          "mqtt_password": "MQTT password",
+          "stream_path": "Camera stream path, optional, for example /live/k5DawnaQ"
+        }
+      }
+    }
+  },
+  "options": {
+    "step": {
+      "init": {
+        "title": "Anycubic Kobra X options",
+        "data": {
+          "stream_path": "Camera stream path",
+          "mqtt_username": "MQTT username",
+          "mqtt_password": "MQTT password"
+        }
+      }
+    }
+  },
+  "entity": {
+    "sensor": {
+      "print_state": { "name": "Print state" },
+      "progress": { "name": "Progress" },
+      "filename": { "name": "Filename" },
+      "nozzle_temperature": { "name": "Nozzle temperature" },
+      "bed_temperature": { "name": "Bed temperature" },
+      "target_nozzle_temperature": { "name": "Target nozzle temperature" },
+      "target_bed_temperature": { "name": "Target bed temperature" }
+    },
+    "light": {
+      "light": { "name": "Light" }
+    },
+    "camera": {
+      "camera": { "name": "Camera" }
+    }
+  }
+}

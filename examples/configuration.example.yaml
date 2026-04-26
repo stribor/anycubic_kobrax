@@ -1,0 +1,6 @@
+host: 192.168.1.100
+type_id: 20030
+printer_id: your_printer_id
+mqtt_username: your_mqtt_username
+mqtt_password: your_mqtt_password
+stream_path: /live/current_token_if_needed

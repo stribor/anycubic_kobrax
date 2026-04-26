@@ -1,0 +1,12 @@
+{
+  "domain": "anycubic_kobrax",
+  "name": "Anycubic Kobra X",
+  "after_dependencies": ["ffmpeg", "stream"],
+  "codeowners": [],
+  "config_flow": true,
+  "documentation": "https://github.com/custom-components/anycubic_kobrax",
+  "iot_class": "local_polling",
+  "issue_tracker": "https://github.com/custom-components/anycubic_kobrax/issues",
+  "requirements": ["paho-mqtt==2.1.0"],
+  "version": "0.1.0"
+}
