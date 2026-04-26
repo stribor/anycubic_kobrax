@@ -47,6 +47,8 @@ does not work yet, set the path manually in options, for example:
 - Brightness-capable light entity using Anycubic's `0-100` brightness scale
 - Camera entity that sends `startCapture`/`stopCapture` and exposes the FLV URL
   to Home Assistant's stream/ffmpeg pipeline
+- Local Home Assistant brand icon at
+  `custom_components/anycubic_kobrax/brand/icon.png`
 
 ## Still to improve
 
