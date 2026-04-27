@@ -23,12 +23,20 @@ from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, Upda
 
 from .const import (
     ATTR_AUX_FAN_SPEED,
+    ATTR_AXIS_CODE,
+    ATTR_AXIS_MESSAGE,
+    ATTR_AXIS_STATE,
     ATTR_BED_TEMP,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
+    ATTR_ESTIMATE_DURATION,
+    ATTR_ESTIMATE_WEIGHT,
     ATTR_FAN_SPEED,
     ATTR_FILENAME,
+    ATTR_FILAMENT_USED,
+    ATTR_FILE_ROOT,
     ATTR_FIRMWARE_VERSION,
+    ATTR_GCODE_SIZE,
     ATTR_IP_ADDRESS,
     ATTR_LAYER,
     ATTR_LAST_TOPIC,
@@ -48,13 +56,22 @@ from .const import (
     ATTR_PRINT_SPEED_MODE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
+    ATTR_SLICER,
+    ATTR_SLOT_COLOR,
+    ATTR_SLOT_PERCENT,
+    ATTR_SLOT_SKU,
+    ATTR_SLOT_STATUS,
+    ATTR_SLOT_TYPE,
+    ATTR_SLOT_WEIGHT,
     ATTR_STREAM_URL,
     ATTR_TARGET_BED_TEMP,
     ATTR_TARGET_NOZZLE_TEMP,
+    ATTR_TASK_ID,
     ATTR_TOTAL_TIME,
     ATTR_TOTAL_LAYER,
     ATTR_USB_DISK,
     ATTR_VIDEO_STATE,
+    ATTR_WIFI_SIGNAL,
     CONF_MQTT_PASSWORD,
     CONF_MQTT_USERNAME,
     CONF_PRINTER_ID,
@@ -179,6 +196,47 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         )
         self._publish(f"{self.base_web_topic}/light", payload)
 
+    def set_temperature(
+        self, command_type: int, bed_temperature: int, nozzle_temperature: int
+    ) -> None:
+        """Set printer target temperatures."""
+        bed_temperature = max(0, min(120, bed_temperature))
+        nozzle_temperature = max(0, min(300, nozzle_temperature))
+        self._publish(
+            f"{self.base_web_topic}/tempature",
+            self._payload(
+                "tempature",
+                "set",
+                {
+                    "type": command_type,
+                    "target_hotbed_temp": bed_temperature,
+                    "target_nozzle_temp": nozzle_temperature,
+                },
+            ),
+        )
+
+    def set_bed_temperature(self, temperature: int) -> None:
+        """Set the hotbed target temperature."""
+        target_nozzle_temp = _coerce_int(self._state.get(ATTR_TARGET_NOZZLE_TEMP)) or 0
+        self.set_temperature(1, temperature, target_nozzle_temp)
+
+    def set_nozzle_temperature(self, temperature: int) -> None:
+        """Set the nozzle target temperature."""
+        target_bed_temp = _coerce_int(self._state.get(ATTR_TARGET_BED_TEMP)) or 0
+        self.set_temperature(0, target_bed_temp, temperature)
+
+    def preheat_pla(self) -> None:
+        """Preheat bed and nozzle for PLA."""
+        self.set_temperature(2, 60, 200)
+
+    def set_fan_speed(self, speed: int) -> None:
+        """Set model fan speed percentage."""
+        speed = max(0, min(100, speed))
+        self._publish(
+            f"{self.base_web_topic}/fan",
+            self._payload("fan", "setSpeed", {"fan_speed_pct": speed}),
+        )
+
     def start_video(self) -> None:
         """Ask the printer to start camera capture."""
         self._publish(
@@ -192,6 +250,24 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             f"{self.base_web_topic}/video",
             self._payload("video", "stopCapture"),
         )
+
+    def axis_command(self, action: str, data: Mapping[str, Any] | None = None) -> None:
+        """Send an axis command to the printer."""
+        self._publish(
+            f"{self.base_web_topic}/axis",
+            self._payload("axis", action, data),
+        )
+
+    def move_axis(self, axis: int, move_type: int, distance: int) -> None:
+        """Move or home one of the printer axis groups."""
+        self.axis_command(
+            "move",
+            {"axis": axis, "move_type": move_type, "distance": distance},
+        )
+
+    def turn_off_axis_motors(self) -> None:
+        """Turn off axis motors."""
+        self.axis_command("turnOff")
 
     def stream_url(self) -> str | None:
         """Return the best-known FLV stream URL."""
@@ -329,7 +405,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Parse a message inside the Home Assistant event loop."""
         self._raw_messages[topic] = payload
         self._state[ATTR_LAST_TOPIC] = topic
-        self._state["last_payload"] = payload
+        self._state["last_payload"] = _redact_large_payload(payload)
 
         if isinstance(payload, dict):
             self._merge_payload(topic, payload)
@@ -356,6 +432,16 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._merge_multi_color_box(payload)
         if message_type == "video" or topic_tail == "video":
             self._state[ATTR_VIDEO_STATE] = payload.get("state") or payload.get("action")
+        if message_type == "axis" or topic_tail == "axis":
+            self._state[ATTR_AXIS_STATE] = payload.get("state") or payload.get("action")
+            if "code" in payload:
+                self._state[ATTR_AXIS_CODE] = payload["code"]
+            if "msg" in payload:
+                self._state[ATTR_AXIS_MESSAGE] = payload["msg"]
+        if message_type in {"print", "buried"} or topic_tail in {"print", "buried"}:
+            self._merge_print_payload(payload)
+        if message_type == "file" or topic_tail == "file":
+            self._merge_file_payload(payload)
 
         field_map = {
             ATTR_PRINT_STATE: (
@@ -384,9 +470,19 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "fileName",
                 "file_name",
                 "taskName",
+                "task_name",
                 "printName",
                 "name",
             ),
+            ATTR_TASK_ID: ("taskid", "task_id"),
+            ATTR_FILE_ROOT: ("root",),
+            ATTR_FILAMENT_USED: ("filament_used",),
+            ATTR_ESTIMATE_DURATION: ("estimate_duration",),
+            ATTR_ESTIMATE_WEIGHT: ("estimate_weight",),
+            ATTR_GCODE_SIZE: ("gcode_size",),
+            ATTR_WIFI_SIGNAL: ("wifi_signal",),
+            ATTR_SLICER: ("slicer",),
+            ATTR_SUPPLIES_USAGE: ("supplies_usage",),
             ATTR_PRINT_SPEED: (
                 "printSpeed",
                 "speed",
@@ -395,12 +491,14 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ),
             ATTR_PRINT_SPEED_MODE: ("print_speed_mode", "printSpeedMode"),
             ATTR_REMAINING_TIME: (
+                "remain_time",
                 "remainingTime",
                 "remainTime",
                 "timeRemaining",
                 "leftTime",
             ),
             ATTR_TOTAL_TIME: (
+                "print_time",
                 "totalTime",
                 "printTime",
                 "elapsedTime",
@@ -473,8 +571,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_MULTI_COLOR_BOX: ("multiColorBox", "multi_color_box"),
             ATTR_VIDEO_STATE: ("videoState", "video_state"),
             ATTR_MATERIAL: ("material", "filament", "filamentType"),
-            ATTR_LAYER: ("layer", "currentLayer", "currLayer"),
-            ATTR_TOTAL_LAYER: ("totalLayer", "totalLayers", "layerCount"),
+            ATTR_LAYER: ("curr_layer", "layer", "currentLayer", "currLayer"),
+            ATTR_TOTAL_LAYER: ("total_layers", "totalLayer", "totalLayers", "layerCount"),
         }
         for attr, keys in field_map.items():
             value = _first_present(flat, keys)
@@ -489,16 +587,24 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if light_state_int is not None:
                     self._state[ATTR_LIGHT_BRIGHTNESS] = 100 if light_state_int else 0
 
+        if message_type == "info" or topic_tail == "info":
+            self._merge_info_payload(payload)
+
         self._normalize_numeric_fields()
 
     def _normalize_numeric_fields(self) -> None:
         """Convert common numeric state fields to numbers where possible."""
         int_fields = (
             ATTR_PROGRESS,
+            ATTR_AXIS_CODE,
+            ATTR_ESTIMATE_DURATION,
+            ATTR_GCODE_SIZE,
+            ATTR_WIFI_SIGNAL,
             ATTR_PRINT_SPEED,
             ATTR_PRINT_SPEED_MODE,
             ATTR_REMAINING_TIME,
             ATTR_TOTAL_TIME,
+            ATTR_SUPPLIES_USAGE,
             ATTR_FAN_SPEED,
             ATTR_AUX_FAN_SPEED,
             ATTR_BOX_FAN_SPEED,
@@ -509,6 +615,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_MULTI_COLOR_BOX_STATUS,
             ATTR_MULTI_COLOR_BOX_HUMIDITY,
             ATTR_LOADED_SLOT,
+            *ATTR_SLOT_STATUS,
+            *ATTR_SLOT_PERCENT,
+            *ATTR_SLOT_WEIGHT,
             ATTR_LAYER,
             ATTR_TOTAL_LAYER,
         )
@@ -518,6 +627,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_TARGET_NOZZLE_TEMP,
             ATTR_TARGET_BED_TEMP,
             ATTR_MULTI_COLOR_BOX_TEMP,
+            ATTR_ESTIMATE_WEIGHT,
+            ATTR_FILAMENT_USED,
         )
         for attr in int_fields:
             value = _coerce_int(self._state.get(attr))
@@ -561,6 +672,112 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             )
             if materials:
                 self._state[ATTR_MATERIAL] = ", ".join(materials)
+
+            for index, slot in enumerate(slots[: len(ATTR_SLOT_TYPE)]):
+                if not isinstance(slot, dict):
+                    continue
+                self._state[ATTR_SLOT_TYPE[index]] = slot.get("type")
+                self._state[ATTR_SLOT_STATUS[index]] = slot.get("status")
+                self._state[ATTR_SLOT_PERCENT[index]] = slot.get(
+                    "consumables_percent"
+                )
+                self._state[ATTR_SLOT_WEIGHT[index]] = slot.get("weight")
+                self._state[ATTR_SLOT_SKU[index]] = slot.get("sku")
+                color = slot.get("color")
+                if isinstance(color, list) and len(color) >= 3:
+                    self._state[ATTR_SLOT_COLOR[index]] = (
+                        f"#{int(color[0]):02x}{int(color[1]):02x}{int(color[2]):02x}"
+                    )
+
+    def _merge_file_payload(self, payload: dict[str, Any]) -> None:
+        """Merge file metadata without keeping embedded preview images."""
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return
+
+        filename = data.get("filename")
+        if filename:
+            self._state[ATTR_FILENAME] = filename
+        root = data.get("root")
+        if root:
+            self._state[ATTR_FILE_ROOT] = root
+
+        details = data.get("file_details")
+        if not isinstance(details, dict):
+            return
+        paint_infos = details.get("paint_infos")
+        if isinstance(paint_infos, list) and paint_infos:
+            paint_info = paint_infos[0]
+            if isinstance(paint_info, dict):
+                material = paint_info.get("material_type")
+                if material:
+                    self._state[ATTR_MATERIAL] = material
+                if paint_info.get("filament_used") is not None:
+                    self._state[ATTR_FILAMENT_USED] = paint_info["filament_used"]
+
+    def _merge_print_payload(self, payload: dict[str, Any]) -> None:
+        """Merge print lifecycle and buried metadata."""
+        state = payload.get("state")
+        if state:
+            self._state[ATTR_PRINT_STATE] = state
+
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return
+
+        mappings = {
+            ATTR_FILENAME: ("filename", "task_name"),
+            ATTR_TASK_ID: ("taskid", "task_id"),
+            ATTR_PROGRESS: ("progress",),
+            ATTR_LAYER: ("curr_layer",),
+            ATTR_TOTAL_LAYER: ("total_layers",),
+            ATTR_TOTAL_TIME: ("print_time",),
+            ATTR_REMAINING_TIME: ("remain_time", "estimate_duration"),
+            ATTR_SUPPLIES_USAGE: ("supplies_usage",),
+            ATTR_ESTIMATE_DURATION: ("estimate_duration",),
+            ATTR_ESTIMATE_WEIGHT: ("estimate_weight",),
+            ATTR_GCODE_SIZE: ("gcode_size",),
+            ATTR_WIFI_SIGNAL: ("wifi_signal",),
+            ATTR_MATERIAL: ("print_filaments", "slice_filaments"),
+            ATTR_SLICER: ("slicer",),
+        }
+        for attr, keys in mappings.items():
+            value = _first_present(data, keys)
+            if value is not None:
+                self._state[attr] = value
+
+        source_info = data.get("source_info")
+        if isinstance(source_info, dict):
+            version = source_info.get("software_version")
+            if version:
+                self._state[ATTR_SLICER] = version
+
+    def _merge_info_payload(self, payload: dict[str, Any]) -> None:
+        """Merge nested project data from info reports."""
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return
+
+        project = data.get("project")
+        if not isinstance(project, dict):
+            return
+
+        mappings = {
+            ATTR_PRINT_STATE: ("state",),
+            ATTR_FILENAME: ("filename",),
+            ATTR_TASK_ID: ("task_id", "taskid"),
+            ATTR_PROGRESS: ("progress",),
+            ATTR_LAYER: ("curr_layer",),
+            ATTR_TOTAL_LAYER: ("total_layers",),
+            ATTR_TOTAL_TIME: ("print_time",),
+            ATTR_REMAINING_TIME: ("remain_time",),
+            ATTR_SUPPLIES_USAGE: ("supplies_usage",),
+            ATTR_PRINT_SPEED_MODE: ("print_speed_mode",),
+        }
+        for attr, keys in mappings.items():
+            value = _first_present(project, keys)
+            if value is not None:
+                self._state[attr] = value
 
     def _extract_stream_url(self, text: str, payload: Any) -> str | None:
         """Find a /live/ camera URL or path in MQTT data."""
@@ -615,6 +832,21 @@ def _first_present(flat: Mapping[str, Any], keys: tuple[str, ...]) -> Any | None
         if key in flat:
             return flat[key]
     return None
+
+
+def _redact_large_payload(value: Any) -> Any:
+    """Drop large embedded image fields from diagnostic payloads."""
+    if isinstance(value, dict):
+        redacted: dict[str, Any] = {}
+        for key, child in value.items():
+            if key in {"png_image", "svg_image", "thumbnail"}:
+                redacted[key] = "<redacted>"
+            else:
+                redacted[key] = _redact_large_payload(child)
+        return redacted
+    if isinstance(value, list):
+        return [_redact_large_payload(child) for child in value]
+    return value
 
 
 def _coerce_last_will(flat: Mapping[str, Any]) -> str:

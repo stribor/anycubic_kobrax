@@ -19,12 +19,20 @@ from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     ATTR_AUX_FAN_SPEED,
+    ATTR_AXIS_CODE,
+    ATTR_AXIS_MESSAGE,
+    ATTR_AXIS_STATE,
     ATTR_BED_TEMP,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
+    ATTR_ESTIMATE_DURATION,
+    ATTR_ESTIMATE_WEIGHT,
     ATTR_FAN_SPEED,
     ATTR_FILENAME,
+    ATTR_FILAMENT_USED,
+    ATTR_FILE_ROOT,
     ATTR_FIRMWARE_VERSION,
+    ATTR_GCODE_SIZE,
     ATTR_IP_ADDRESS,
     ATTR_LAST_TOPIC,
     ATTR_LAST_WILL,
@@ -43,12 +51,21 @@ from .const import (
     ATTR_PRINT_SPEED_MODE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
+    ATTR_SLICER,
+    ATTR_SLOT_COLOR,
+    ATTR_SLOT_PERCENT,
+    ATTR_SLOT_SKU,
+    ATTR_SLOT_STATUS,
+    ATTR_SLOT_TYPE,
+    ATTR_SLOT_WEIGHT,
     ATTR_TARGET_BED_TEMP,
     ATTR_TARGET_NOZZLE_TEMP,
+    ATTR_TASK_ID,
     ATTR_TOTAL_LAYER,
     ATTR_TOTAL_TIME,
     ATTR_USB_DISK,
     ATTR_VIDEO_STATE,
+    ATTR_WIFI_SIGNAL,
 )
 from .coordinator import AnycubicKobraXCoordinator
 from .entity import AnycubicKobraXEntity
@@ -65,6 +82,9 @@ class AnycubicSensorDescription(SensorEntityDescription):
 
 SENSORS = (
     AnycubicSensorDescription(key=ATTR_LAST_WILL, translation_key="last_will"),
+    AnycubicSensorDescription(key=ATTR_AXIS_STATE, translation_key="axis_state"),
+    AnycubicSensorDescription(key=ATTR_AXIS_CODE, translation_key="axis_code"),
+    AnycubicSensorDescription(key=ATTR_AXIS_MESSAGE, translation_key="axis_message"),
     AnycubicSensorDescription(key=ATTR_PRINT_STATE, translation_key="print_state"),
     AnycubicSensorDescription(key=ATTR_PRINTER_NAME, translation_key="printer_name"),
     AnycubicSensorDescription(key=ATTR_MODEL, translation_key="model"),
@@ -78,7 +98,35 @@ SENSORS = (
         native_unit_of_measurement=PERCENTAGE,
     ),
     AnycubicSensorDescription(key=ATTR_FILENAME, translation_key="filename"),
+    AnycubicSensorDescription(key=ATTR_TASK_ID, translation_key="task_id"),
+    AnycubicSensorDescription(key=ATTR_FILE_ROOT, translation_key="file_root"),
     AnycubicSensorDescription(key=ATTR_MATERIAL, translation_key="material"),
+    AnycubicSensorDescription(
+        key=ATTR_FILAMENT_USED,
+        translation_key="filament_used",
+        native_unit_of_measurement="m",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_ESTIMATE_DURATION,
+        translation_key="estimate_duration",
+        native_unit_of_measurement="s",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_ESTIMATE_WEIGHT,
+        translation_key="estimate_weight",
+        native_unit_of_measurement="g",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_GCODE_SIZE,
+        translation_key="gcode_size",
+        native_unit_of_measurement="B",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_WIFI_SIGNAL,
+        translation_key="wifi_signal",
+        native_unit_of_measurement="dBm",
+    ),
+    AnycubicSensorDescription(key=ATTR_SLICER, translation_key="slicer"),
     AnycubicSensorDescription(
         key=ATTR_PRINT_SPEED,
         translation_key="print_speed",
@@ -162,6 +210,38 @@ SENSORS = (
     AnycubicSensorDescription(
         key=ATTR_LOADED_SLOT,
         translation_key="loaded_slot",
+    ),
+    *(
+        description
+        for slot in range(1, 5)
+        for description in (
+            AnycubicSensorDescription(
+                key=ATTR_SLOT_TYPE[slot - 1],
+                translation_key=f"slot_{slot}_type",
+            ),
+            AnycubicSensorDescription(
+                key=ATTR_SLOT_STATUS[slot - 1],
+                translation_key=f"slot_{slot}_status",
+            ),
+            AnycubicSensorDescription(
+                key=ATTR_SLOT_PERCENT[slot - 1],
+                translation_key=f"slot_{slot}_percent",
+                native_unit_of_measurement=PERCENTAGE,
+            ),
+            AnycubicSensorDescription(
+                key=ATTR_SLOT_WEIGHT[slot - 1],
+                translation_key=f"slot_{slot}_weight",
+                native_unit_of_measurement="g",
+            ),
+            AnycubicSensorDescription(
+                key=ATTR_SLOT_SKU[slot - 1],
+                translation_key=f"slot_{slot}_sku",
+            ),
+            AnycubicSensorDescription(
+                key=ATTR_SLOT_COLOR[slot - 1],
+                translation_key=f"slot_{slot}_color",
+            ),
+        )
     ),
     AnycubicSensorDescription(
         key=ATTR_LAYER,

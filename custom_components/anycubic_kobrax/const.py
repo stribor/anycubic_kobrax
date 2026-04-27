@@ -17,7 +17,7 @@ DEFAULT_TYPE_ID = 20030
 DEFAULT_MQTT_USERNAME = ""
 DEFAULT_MQTT_PASSWORD = ""
 
-PLATFORMS = ["sensor", "light", "camera"]
+PLATFORMS = ["sensor", "light", "camera", "button", "number"]
 
 QUERY_SPECS = (
     ("web", "lastWill", "query"),
@@ -34,6 +34,9 @@ QUERY_SPECS = (
 TOPIC_BASE = "anycubic/anycubicCloud/v1"
 
 ATTR_LAST_WILL = "last_will"
+ATTR_AXIS_STATE = "axis_state"
+ATTR_AXIS_CODE = "axis_code"
+ATTR_AXIS_MESSAGE = "axis_message"
 ATTR_PRINT_STATE = "print_state"
 ATTR_PRINTER_NAME = "printer_name"
 ATTR_MODEL = "model"
@@ -41,6 +44,15 @@ ATTR_FIRMWARE_VERSION = "firmware_version"
 ATTR_IP_ADDRESS = "ip_address"
 ATTR_PROGRESS = "progress"
 ATTR_FILENAME = "filename"
+ATTR_TASK_ID = "task_id"
+ATTR_FILE_ROOT = "file_root"
+ATTR_FILAMENT_USED = "filament_used"
+ATTR_ESTIMATE_DURATION = "estimate_duration"
+ATTR_ESTIMATE_WEIGHT = "estimate_weight"
+ATTR_GCODE_SIZE = "gcode_size"
+ATTR_WIFI_SIGNAL = "wifi_signal"
+ATTR_SLICER = "slicer"
+ATTR_SUPPLIES_USAGE = "supplies_usage"
 ATTR_PRINT_SPEED = "print_speed"
 ATTR_PRINT_SPEED_MODE = "print_speed_mode"
 ATTR_REMAINING_TIME = "remaining_time"
@@ -61,6 +73,14 @@ ATTR_MULTI_COLOR_BOX_STATUS = "multi_color_box_status"
 ATTR_MULTI_COLOR_BOX_TEMP = "multi_color_box_temperature"
 ATTR_MULTI_COLOR_BOX_HUMIDITY = "multi_color_box_humidity"
 ATTR_LOADED_SLOT = "loaded_slot"
+
+MULTI_COLOR_SLOT_COUNT = 4
+ATTR_SLOT_TYPE = tuple(f"slot_{slot}_type" for slot in range(1, MULTI_COLOR_SLOT_COUNT + 1))
+ATTR_SLOT_STATUS = tuple(f"slot_{slot}_status" for slot in range(1, MULTI_COLOR_SLOT_COUNT + 1))
+ATTR_SLOT_PERCENT = tuple(f"slot_{slot}_percent" for slot in range(1, MULTI_COLOR_SLOT_COUNT + 1))
+ATTR_SLOT_WEIGHT = tuple(f"slot_{slot}_weight" for slot in range(1, MULTI_COLOR_SLOT_COUNT + 1))
+ATTR_SLOT_SKU = tuple(f"slot_{slot}_sku" for slot in range(1, MULTI_COLOR_SLOT_COUNT + 1))
+ATTR_SLOT_COLOR = tuple(f"slot_{slot}_color" for slot in range(1, MULTI_COLOR_SLOT_COUNT + 1))
 ATTR_LAYER = "layer"
 ATTR_TOTAL_LAYER = "total_layer"
 ATTR_STREAM_URL = "stream_url"

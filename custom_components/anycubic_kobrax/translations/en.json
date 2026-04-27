@@ -29,43 +29,308 @@
   },
   "entity": {
     "sensor": {
-      "last_will": { "name": "Last will" },
-      "print_state": { "name": "Print state" },
-      "printer_name": { "name": "Printer name" },
-      "model": { "name": "Model" },
-      "firmware_version": { "name": "Firmware version" },
-      "ip_address": { "name": "IP address" },
-      "progress": { "name": "Progress" },
-      "filename": { "name": "Filename" },
-      "material": { "name": "Material" },
-      "print_speed": { "name": "Print speed" },
-      "print_speed_mode": { "name": "Print speed mode" },
-      "remaining_time": { "name": "Remaining time" },
-      "total_time": { "name": "Total time" },
-      "nozzle_temperature": { "name": "Nozzle temperature" },
-      "bed_temperature": { "name": "Bed temperature" },
-      "target_nozzle_temperature": { "name": "Target nozzle temperature" },
-      "target_bed_temperature": { "name": "Target bed temperature" },
-      "fan_speed": { "name": "Fan speed" },
-      "aux_fan_speed": { "name": "Aux fan speed" },
-      "box_fan_speed": { "name": "Box fan speed" },
-      "camera_available": { "name": "Camera available" },
-      "usb_disk": { "name": "USB disk" },
-      "multi_color_box": { "name": "Multi-color box" },
-      "video_state": { "name": "Video state" },
-      "multi_color_box_status": { "name": "Multi-color box status" },
-      "multi_color_box_temperature": { "name": "Multi-color box temperature" },
-      "multi_color_box_humidity": { "name": "Multi-color box humidity" },
-      "loaded_slot": { "name": "Loaded slot" },
-      "layer": { "name": "Layer" },
-      "total_layer": { "name": "Total layer" },
-      "last_mqtt_message": { "name": "Last MQTT message" }
+      "last_will": {
+        "name": "Last will"
+      },
+      "axis_state": {
+        "name": "Axis state"
+      },
+      "axis_code": {
+        "name": "Axis code"
+      },
+      "axis_message": {
+        "name": "Axis message"
+      },
+      "print_state": {
+        "name": "Print state"
+      },
+      "printer_name": {
+        "name": "Printer name"
+      },
+      "model": {
+        "name": "Model"
+      },
+      "firmware_version": {
+        "name": "Firmware version"
+      },
+      "ip_address": {
+        "name": "IP address"
+      },
+      "progress": {
+        "name": "Progress"
+      },
+      "filename": {
+        "name": "Filename"
+      },
+      "task_id": {
+        "name": "Task ID"
+      },
+      "file_root": {
+        "name": "File root"
+      },
+      "material": {
+        "name": "Material"
+      },
+      "filament_used": {
+        "name": "Filament used"
+      },
+      "estimate_duration": {
+        "name": "Estimated duration"
+      },
+      "estimate_weight": {
+        "name": "Estimated weight"
+      },
+      "gcode_size": {
+        "name": "G-code size"
+      },
+      "wifi_signal": {
+        "name": "Wi-Fi signal"
+      },
+      "slicer": {
+        "name": "Slicer"
+      },
+      "print_speed": {
+        "name": "Print speed"
+      },
+      "print_speed_mode": {
+        "name": "Print speed mode"
+      },
+      "remaining_time": {
+        "name": "Remaining time"
+      },
+      "total_time": {
+        "name": "Total time"
+      },
+      "nozzle_temperature": {
+        "name": "Nozzle temperature"
+      },
+      "bed_temperature": {
+        "name": "Bed temperature"
+      },
+      "target_nozzle_temperature": {
+        "name": "Target nozzle temperature"
+      },
+      "target_bed_temperature": {
+        "name": "Target bed temperature"
+      },
+      "fan_speed": {
+        "name": "Fan speed"
+      },
+      "aux_fan_speed": {
+        "name": "Aux fan speed"
+      },
+      "box_fan_speed": {
+        "name": "Box fan speed"
+      },
+      "camera_available": {
+        "name": "Camera available"
+      },
+      "usb_disk": {
+        "name": "USB disk"
+      },
+      "multi_color_box": {
+        "name": "Multi-color box"
+      },
+      "video_state": {
+        "name": "Video state"
+      },
+      "multi_color_box_status": {
+        "name": "Multi-color box status"
+      },
+      "multi_color_box_temperature": {
+        "name": "Multi-color box temperature"
+      },
+      "multi_color_box_humidity": {
+        "name": "Multi-color box humidity"
+      },
+      "loaded_slot": {
+        "name": "Loaded slot"
+      },
+      "slot_1_type": {
+        "name": "Slot 1 type"
+      },
+      "slot_1_status": {
+        "name": "Slot 1 status"
+      },
+      "slot_1_percent": {
+        "name": "Slot 1 remaining"
+      },
+      "slot_1_weight": {
+        "name": "Slot 1 weight"
+      },
+      "slot_1_sku": {
+        "name": "Slot 1 SKU"
+      },
+      "slot_1_color": {
+        "name": "Slot 1 color"
+      },
+      "slot_2_type": {
+        "name": "Slot 2 type"
+      },
+      "slot_2_status": {
+        "name": "Slot 2 status"
+      },
+      "slot_2_percent": {
+        "name": "Slot 2 remaining"
+      },
+      "slot_2_weight": {
+        "name": "Slot 2 weight"
+      },
+      "slot_2_sku": {
+        "name": "Slot 2 SKU"
+      },
+      "slot_2_color": {
+        "name": "Slot 2 color"
+      },
+      "slot_3_type": {
+        "name": "Slot 3 type"
+      },
+      "slot_3_status": {
+        "name": "Slot 3 status"
+      },
+      "slot_3_percent": {
+        "name": "Slot 3 remaining"
+      },
+      "slot_3_weight": {
+        "name": "Slot 3 weight"
+      },
+      "slot_3_sku": {
+        "name": "Slot 3 SKU"
+      },
+      "slot_3_color": {
+        "name": "Slot 3 color"
+      },
+      "slot_4_type": {
+        "name": "Slot 4 type"
+      },
+      "slot_4_status": {
+        "name": "Slot 4 status"
+      },
+      "slot_4_percent": {
+        "name": "Slot 4 remaining"
+      },
+      "slot_4_weight": {
+        "name": "Slot 4 weight"
+      },
+      "slot_4_sku": {
+        "name": "Slot 4 SKU"
+      },
+      "slot_4_color": {
+        "name": "Slot 4 color"
+      },
+      "layer": {
+        "name": "Layer"
+      },
+      "total_layer": {
+        "name": "Total layer"
+      },
+      "last_mqtt_message": {
+        "name": "Last MQTT message"
+      }
     },
     "light": {
-      "light": { "name": "Light" }
+      "light": {
+        "name": "Light"
+      }
     },
     "camera": {
-      "camera": { "name": "Camera" }
+      "camera": {
+        "name": "Camera"
+      }
+    },
+    "button": {
+      "home_xy": {
+        "name": "Home XY"
+      },
+      "home_z": {
+        "name": "Home Z"
+      },
+      "home_xyz": {
+        "name": "Home XYZ"
+      },
+      "move_x_minus_1": {
+        "name": "X- 1 mm"
+      },
+      "move_x_plus_1": {
+        "name": "X+ 1 mm"
+      },
+      "move_x_minus_15": {
+        "name": "X- 15 mm"
+      },
+      "move_x_plus_15": {
+        "name": "X+ 15 mm"
+      },
+      "move_x_minus_50": {
+        "name": "X- 50 mm"
+      },
+      "move_x_plus_50": {
+        "name": "X+ 50 mm"
+      },
+      "move_y_minus_1": {
+        "name": "Y- 1 mm"
+      },
+      "move_y_plus_1": {
+        "name": "Y+ 1 mm"
+      },
+      "move_y_minus_15": {
+        "name": "Y- 15 mm"
+      },
+      "move_y_plus_15": {
+        "name": "Y+ 15 mm"
+      },
+      "move_y_minus_50": {
+        "name": "Y- 50 mm"
+      },
+      "move_y_plus_50": {
+        "name": "Y+ 50 mm"
+      },
+      "move_z_minus_1": {
+        "name": "Z- 1 mm"
+      },
+      "move_z_plus_1": {
+        "name": "Z+ 1 mm"
+      },
+      "move_z_minus_15": {
+        "name": "Z- 15 mm"
+      },
+      "move_z_plus_15": {
+        "name": "Z+ 15 mm"
+      },
+      "move_z_minus_50": {
+        "name": "Z- 50 mm"
+      },
+      "move_z_plus_50": {
+        "name": "Z+ 50 mm"
+      },
+      "motors_off": {
+        "name": "Motors off"
+      },
+      "bed_temp_pla": {
+        "name": "Bed PLA 60 C"
+      },
+      "bed_temp_abs": {
+        "name": "Bed ABS 90 C"
+      },
+      "nozzle_temp_pla": {
+        "name": "Nozzle PLA 210 C"
+      },
+      "nozzle_temp_abs": {
+        "name": "Nozzle ABS 230 C"
+      },
+      "preheat_pla": {
+        "name": "Preheat PLA"
+      }
+    },
+    "number": {
+      "target_bed_temperature": {
+        "name": "Target bed temperature"
+      },
+      "target_nozzle_temperature": {
+        "name": "Target nozzle temperature"
+      },
+      "fan_speed": {
+        "name": "Fan speed"
+      }
     }
   }
 }
