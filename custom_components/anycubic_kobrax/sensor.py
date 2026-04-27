@@ -6,32 +6,44 @@ from dataclasses import dataclass
 import logging
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity, SensorStateClass
+from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import PERCENTAGE, UnitOfTemperature, UnitOfTime
+from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
-from homeassistant.helpers.entity import EntityCategory
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
 from .const import (
     ATTR_AUX_FAN_SPEED,
     ATTR_BED_TEMP,
     ATTR_BOX_FAN_SPEED,
+    ATTR_CAMERA_AVAILABLE,
     ATTR_FAN_SPEED,
     ATTR_FILENAME,
+    ATTR_FIRMWARE_VERSION,
+    ATTR_IP_ADDRESS,
     ATTR_LAST_TOPIC,
     ATTR_LAST_WILL,
     ATTR_LAYER,
+    ATTR_LOADED_SLOT,
     ATTR_MATERIAL,
+    ATTR_MODEL,
+    ATTR_MULTI_COLOR_BOX,
+    ATTR_MULTI_COLOR_BOX_HUMIDITY,
+    ATTR_MULTI_COLOR_BOX_STATUS,
+    ATTR_MULTI_COLOR_BOX_TEMP,
     ATTR_NOZZLE_TEMP,
+    ATTR_PRINTER_NAME,
     ATTR_PRINT_STATE,
     ATTR_PRINT_SPEED,
+    ATTR_PRINT_SPEED_MODE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
     ATTR_TARGET_BED_TEMP,
     ATTR_TARGET_NOZZLE_TEMP,
     ATTR_TOTAL_LAYER,
     ATTR_TOTAL_TIME,
+    ATTR_USB_DISK,
+    ATTR_VIDEO_STATE,
 )
 from .coordinator import AnycubicKobraXCoordinator
 from .entity import AnycubicKobraXEntity
@@ -47,101 +59,114 @@ class AnycubicSensorDescription:
     translation_key: str
     device_class: SensorDeviceClass | None = None
     native_unit_of_measurement: str | None = None
-    state_class: SensorStateClass | None = None
-    entity_category: EntityCategory | None = None
     diagnostic_payload: bool = False
 
 
 SENSORS = (
     AnycubicSensorDescription(ATTR_LAST_WILL, "last_will"),
     AnycubicSensorDescription(ATTR_PRINT_STATE, "print_state"),
+    AnycubicSensorDescription(ATTR_PRINTER_NAME, "printer_name"),
+    AnycubicSensorDescription(ATTR_MODEL, "model"),
+    AnycubicSensorDescription(ATTR_FIRMWARE_VERSION, "firmware_version"),
+    AnycubicSensorDescription(ATTR_IP_ADDRESS, "ip_address"),
     AnycubicSensorDescription(
         ATTR_PROGRESS,
         "progress",
         native_unit_of_measurement=PERCENTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(ATTR_FILENAME, "filename"),
     AnycubicSensorDescription(ATTR_MATERIAL, "material"),
     AnycubicSensorDescription(
         ATTR_PRINT_SPEED,
         "print_speed",
-        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    AnycubicSensorDescription(
+        ATTR_PRINT_SPEED_MODE,
+        "print_speed_mode",
     ),
     AnycubicSensorDescription(
         ATTR_REMAINING_TIME,
         "remaining_time",
-        SensorDeviceClass.DURATION,
-        UnitOfTime.SECONDS,
-        SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="s",
     ),
     AnycubicSensorDescription(
         ATTR_TOTAL_TIME,
         "total_time",
-        SensorDeviceClass.DURATION,
-        UnitOfTime.SECONDS,
-        SensorStateClass.MEASUREMENT,
+        native_unit_of_measurement="s",
     ),
     AnycubicSensorDescription(
         ATTR_NOZZLE_TEMP,
         "nozzle_temperature",
         SensorDeviceClass.TEMPERATURE,
         UnitOfTemperature.CELSIUS,
-        SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         ATTR_BED_TEMP,
         "bed_temperature",
         SensorDeviceClass.TEMPERATURE,
         UnitOfTemperature.CELSIUS,
-        SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         ATTR_TARGET_NOZZLE_TEMP,
         "target_nozzle_temperature",
         SensorDeviceClass.TEMPERATURE,
         UnitOfTemperature.CELSIUS,
-        SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         ATTR_TARGET_BED_TEMP,
         "target_bed_temperature",
         SensorDeviceClass.TEMPERATURE,
         UnitOfTemperature.CELSIUS,
-        SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         ATTR_FAN_SPEED,
         "fan_speed",
         native_unit_of_measurement=PERCENTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         ATTR_AUX_FAN_SPEED,
         "aux_fan_speed",
         native_unit_of_measurement=PERCENTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         ATTR_BOX_FAN_SPEED,
         "box_fan_speed",
         native_unit_of_measurement=PERCENTAGE,
-        state_class=SensorStateClass.MEASUREMENT,
+    ),
+    AnycubicSensorDescription(ATTR_CAMERA_AVAILABLE, "camera_available"),
+    AnycubicSensorDescription(ATTR_USB_DISK, "usb_disk"),
+    AnycubicSensorDescription(ATTR_MULTI_COLOR_BOX, "multi_color_box"),
+    AnycubicSensorDescription(ATTR_VIDEO_STATE, "video_state"),
+    AnycubicSensorDescription(
+        ATTR_MULTI_COLOR_BOX_STATUS,
+        "multi_color_box_status",
+    ),
+    AnycubicSensorDescription(
+        ATTR_MULTI_COLOR_BOX_TEMP,
+        "multi_color_box_temperature",
+        SensorDeviceClass.TEMPERATURE,
+        UnitOfTemperature.CELSIUS,
+    ),
+    AnycubicSensorDescription(
+        ATTR_MULTI_COLOR_BOX_HUMIDITY,
+        "multi_color_box_humidity",
+        native_unit_of_measurement=PERCENTAGE,
+    ),
+    AnycubicSensorDescription(
+        ATTR_LOADED_SLOT,
+        "loaded_slot",
     ),
     AnycubicSensorDescription(
         ATTR_LAYER,
         "layer",
-        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         ATTR_TOTAL_LAYER,
         "total_layer",
-        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         ATTR_LAST_TOPIC,
         "last_mqtt_message",
-        entity_category=EntityCategory.DIAGNOSTIC,
         diagnostic_payload=True,
     ),
 )
@@ -154,7 +179,7 @@ async def async_setup_entry(
     coordinator: AnycubicKobraXCoordinator = entry.runtime_data
     _LOGGER.info("Setting up %s Anycubic Kobra X sensors", len(SENSORS))
     async_add_entities(
-        AnycubicKobraXSensor(coordinator, description) for description in SENSORS
+        [AnycubicKobraXSensor(coordinator, description) for description in SENSORS]
     )
 
 
@@ -173,8 +198,6 @@ class AnycubicKobraXSensor(AnycubicKobraXEntity, SensorEntity):
         self.entity_description = description
         self._attr_device_class = description.device_class
         self._attr_native_unit_of_measurement = description.native_unit_of_measurement
-        self._attr_state_class = description.state_class
-        self._attr_entity_category = description.entity_category
 
     @property
     def native_value(self) -> Any:

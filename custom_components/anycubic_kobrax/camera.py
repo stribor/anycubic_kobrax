@@ -7,6 +7,7 @@ from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
 
+from .const import ATTR_VIDEO_STATE
 from .coordinator import AnycubicKobraXCoordinator
 from .entity import AnycubicKobraXEntity
 
@@ -35,6 +36,16 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
         if self.coordinator.stream_url() is None:
             await self.async_turn_on()
         return self.coordinator.stream_url()
+
+    @property
+    def is_streaming(self) -> bool:
+        """Return whether the printer reports video capture as active."""
+        video_state = self.coordinator.data.get(ATTR_VIDEO_STATE)
+        if video_state == "pushStarted":
+            return True
+        if video_state == "pushStopped":
+            return False
+        return self._attr_is_streaming
 
     async def async_turn_on(self) -> None:
         """Start camera capture."""

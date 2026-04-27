@@ -25,16 +25,27 @@ from .const import (
     ATTR_AUX_FAN_SPEED,
     ATTR_BED_TEMP,
     ATTR_BOX_FAN_SPEED,
+    ATTR_CAMERA_AVAILABLE,
     ATTR_FAN_SPEED,
     ATTR_FILENAME,
+    ATTR_FIRMWARE_VERSION,
+    ATTR_IP_ADDRESS,
     ATTR_LAYER,
     ATTR_LAST_TOPIC,
     ATTR_LAST_WILL,
     ATTR_LIGHT_BRIGHTNESS,
+    ATTR_LOADED_SLOT,
     ATTR_MATERIAL,
+    ATTR_MODEL,
+    ATTR_MULTI_COLOR_BOX,
+    ATTR_MULTI_COLOR_BOX_HUMIDITY,
+    ATTR_MULTI_COLOR_BOX_STATUS,
+    ATTR_MULTI_COLOR_BOX_TEMP,
     ATTR_NOZZLE_TEMP,
+    ATTR_PRINTER_NAME,
     ATTR_PRINT_STATE,
     ATTR_PRINT_SPEED,
+    ATTR_PRINT_SPEED_MODE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
     ATTR_STREAM_URL,
@@ -42,6 +53,8 @@ from .const import (
     ATTR_TARGET_NOZZLE_TEMP,
     ATTR_TOTAL_TIME,
     ATTR_TOTAL_LAYER,
+    ATTR_USB_DISK,
+    ATTR_VIDEO_STATE,
     CONF_MQTT_PASSWORD,
     CONF_MQTT_USERNAME,
     CONF_PRINTER_ID,
@@ -339,6 +352,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         topic_tail = topic.rsplit("/", maxsplit=1)[-1].lower()
         if message_type == "lastwill" or topic_tail == "lastwill":
             self._state[ATTR_LAST_WILL] = _coerce_last_will(flat or all_flat)
+        if message_type == "multicolorbox" or topic_tail == "multicolorbox":
+            self._merge_multi_color_box(payload)
+        if message_type == "video" or topic_tail == "video":
+            self._state[ATTR_VIDEO_STATE] = payload.get("state") or payload.get("action")
 
         field_map = {
             ATTR_PRINT_STATE: (
@@ -350,6 +367,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "workState",
                 "state",
             ),
+            ATTR_PRINTER_NAME: ("printerName", "printer_name", "deviceName"),
+            ATTR_MODEL: ("model", "machineModel"),
+            ATTR_FIRMWARE_VERSION: ("version", "firmwareVersion", "firmware_version"),
+            ATTR_IP_ADDRESS: ("ip", "ipAddress", "ip_address"),
             ATTR_PROGRESS: (
                 "progress",
                 "printProgress",
@@ -372,6 +393,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "feedrate",
                 "feedRate",
             ),
+            ATTR_PRINT_SPEED_MODE: ("print_speed_mode", "printSpeedMode"),
             ATTR_REMAINING_TIME: (
                 "remainingTime",
                 "remainTime",
@@ -386,6 +408,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "duration",
             ),
             ATTR_NOZZLE_TEMP: (
+                "curr_nozzle_temp",
                 "nozzleTemp",
                 "nozzleTemperature",
                 "hotendTemp",
@@ -394,6 +417,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "actualNozzleTemp",
             ),
             ATTR_BED_TEMP: (
+                "curr_hotbed_temp",
+                "curr_bed_temp",
                 "bedTemp",
                 "bedTemperature",
                 "hotbedTemp",
@@ -402,6 +427,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "actualBedTemp",
             ),
             ATTR_TARGET_NOZZLE_TEMP: (
+                "target_nozzle_temp",
                 "targetNozzleTemp",
                 "targetHotendTemp",
                 "nozzleTargetTemp",
@@ -409,6 +435,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "hotendTargetTemp",
             ),
             ATTR_TARGET_BED_TEMP: (
+                "target_hotbed_temp",
+                "target_bed_temp",
                 "targetBedTemp",
                 "targetHotbedTemp",
                 "bedTargetTemp",
@@ -416,6 +444,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "hotbedTargetTemp",
             ),
             ATTR_FAN_SPEED: (
+                "fan_speed_pct",
                 "fanSpeed",
                 "fan",
                 "modelFan",
@@ -423,11 +452,13 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "fanPercent",
             ),
             ATTR_AUX_FAN_SPEED: (
+                "aux_fan_speed_pct",
                 "auxFanSpeed",
                 "auxiliaryFanSpeed",
                 "sideFanSpeed",
             ),
             ATTR_BOX_FAN_SPEED: (
+                "box_fan_speed_pct",
                 "boxFanSpeed",
                 "chamberFanSpeed",
                 "filterFanSpeed",
@@ -437,6 +468,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "lightBrightness",
                 "light",
             ),
+            ATTR_CAMERA_AVAILABLE: ("camera", "camera_available"),
+            ATTR_USB_DISK: ("udisk", "usbDisk", "usb_disk"),
+            ATTR_MULTI_COLOR_BOX: ("multiColorBox", "multi_color_box"),
+            ATTR_VIDEO_STATE: ("videoState", "video_state"),
             ATTR_MATERIAL: ("material", "filament", "filamentType"),
             ATTR_LAYER: ("layer", "currentLayer", "currLayer"),
             ATTR_TOTAL_LAYER: ("totalLayer", "totalLayers", "layerCount"),
@@ -461,12 +496,19 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         int_fields = (
             ATTR_PROGRESS,
             ATTR_PRINT_SPEED,
+            ATTR_PRINT_SPEED_MODE,
             ATTR_REMAINING_TIME,
             ATTR_TOTAL_TIME,
             ATTR_FAN_SPEED,
             ATTR_AUX_FAN_SPEED,
             ATTR_BOX_FAN_SPEED,
             ATTR_LIGHT_BRIGHTNESS,
+            ATTR_CAMERA_AVAILABLE,
+            ATTR_USB_DISK,
+            ATTR_MULTI_COLOR_BOX,
+            ATTR_MULTI_COLOR_BOX_STATUS,
+            ATTR_MULTI_COLOR_BOX_HUMIDITY,
+            ATTR_LOADED_SLOT,
             ATTR_LAYER,
             ATTR_TOTAL_LAYER,
         )
@@ -475,6 +517,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_BED_TEMP,
             ATTR_TARGET_NOZZLE_TEMP,
             ATTR_TARGET_BED_TEMP,
+            ATTR_MULTI_COLOR_BOX_TEMP,
         )
         for attr in int_fields:
             value = _coerce_int(self._state.get(attr))
@@ -485,6 +528,40 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if value is not None:
                 self._state[attr] = value
 
+    def _merge_multi_color_box(self, payload: dict[str, Any]) -> None:
+        """Merge multi-color box data from its nested payload shape."""
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return
+        boxes = data.get("multi_color_box")
+        if not isinstance(boxes, list) or not boxes:
+            return
+        box = boxes[0]
+        if not isinstance(box, dict):
+            return
+
+        mapping = {
+            ATTR_MULTI_COLOR_BOX_STATUS: box.get("status"),
+            ATTR_MULTI_COLOR_BOX_TEMP: box.get("temp"),
+            ATTR_MULTI_COLOR_BOX_HUMIDITY: box.get("humidity"),
+            ATTR_LOADED_SLOT: box.get("loaded_slot"),
+        }
+        for key, value in mapping.items():
+            if value is not None:
+                self._state[key] = value
+
+        slots = box.get("slots")
+        if isinstance(slots, list):
+            materials = sorted(
+                {
+                    str(slot["type"])
+                    for slot in slots
+                    if isinstance(slot, dict) and slot.get("type")
+                }
+            )
+            if materials:
+                self._state[ATTR_MATERIAL] = ", ".join(materials)
+
     def _extract_stream_url(self, text: str, payload: Any) -> str | None:
         """Find a /live/ camera URL or path in MQTT data."""
         if match := _LIVE_URL_RE.search(text):
@@ -493,7 +570,15 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return f"http://{self.device.host}:{DEFAULT_HTTP_PORT}{match.group(0)}"
 
         flat = _flatten(payload)
-        for key in ("url", "streamUrl", "videoUrl", "flvUrl", "path", "token"):
+        for key in (
+            "url",
+            "streamUrl",
+            "videoUrl",
+            "flvUrl",
+            "rtspUrl",
+            "path",
+            "token",
+        ):
             value = flat.get(key)
             if not isinstance(value, str):
                 continue
