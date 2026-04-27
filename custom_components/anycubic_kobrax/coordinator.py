@@ -129,6 +129,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._connected = False
         self._raw_messages: dict[str, Any] = {}
         self._state: dict[str, Any] = {}
+        self._requested_file_details: set[str] = set()
         super().__init__(
             hass,
             _LOGGER,
@@ -238,6 +239,23 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._publish(
             f"{self.base_web_topic}/fan",
             self._payload("fan", "setSpeed", {"fan_speed_pct": speed}),
+        )
+
+    def request_file_details(self, filename: str, root: str = "local") -> None:
+        """Request slicer/file metadata for a known local print file."""
+        if not filename:
+            return
+        request_key = f"{root}:{filename}"
+        if request_key in self._requested_file_details:
+            return
+        self._requested_file_details.add(request_key)
+        self._publish(
+            f"{self.base_web_topic}/file",
+            self._payload(
+                "file",
+                "fileDetails",
+                {"root": root, "filename": filename},
+            ),
         )
 
     def start_video(self) -> None:
@@ -734,6 +752,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._state[ATTR_MATERIAL] = material
                 if paint_info.get("filament_used") is not None:
                     self._state[ATTR_FILAMENT_USED] = paint_info["filament_used"]
+                    if self._state.get(ATTR_ESTIMATE_WEIGHT) is None:
+                        self._state[ATTR_ESTIMATE_WEIGHT] = paint_info["filament_used"]
 
     def _merge_print_payload(self, payload: dict[str, Any]) -> None:
         """Merge print lifecycle and buried metadata."""
@@ -773,6 +793,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._state[ATTR_SLICER] = version
 
         self._convert_print_minutes_to_seconds(data)
+        self._derive_print_estimates()
+        if filename := self._state.get(ATTR_FILENAME):
+            self.request_file_details(str(filename), str(self._state.get(ATTR_FILE_ROOT, "local")))
 
     def _merge_info_payload(self, payload: dict[str, Any]) -> None:
         """Merge nested project data from info reports."""
@@ -802,6 +825,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._state[attr] = value
 
         self._convert_print_minutes_to_seconds(project)
+        self._derive_print_estimates()
+        if filename := self._state.get(ATTR_FILENAME):
+            self.request_file_details(str(filename), str(self._state.get(ATTR_FILE_ROOT, "local")))
 
     def _convert_print_minutes_to_seconds(self, data: dict[str, Any]) -> None:
         """Convert Anycubic print_time/remain_time minutes to HA seconds."""
@@ -813,6 +839,18 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             remaining_time = _coerce_int(data.get("remain_time"))
             if remaining_time is not None:
                 self._state[ATTR_REMAINING_TIME] = remaining_time * 60
+
+    def _derive_print_estimates(self) -> None:
+        """Derive stable print estimates from live print progress reports."""
+        total_time = _coerce_int(self._state.get(ATTR_TOTAL_TIME))
+        remaining_time = _coerce_int(self._state.get(ATTR_REMAINING_TIME))
+        if total_time is not None and remaining_time is not None:
+            self._state[ATTR_ESTIMATE_DURATION] = total_time + remaining_time
+
+        if self._state.get(ATTR_ESTIMATE_WEIGHT) is None:
+            filament_used = _coerce_float(self._state.get(ATTR_FILAMENT_USED))
+            if filament_used is not None:
+                self._state[ATTR_ESTIMATE_WEIGHT] = filament_used
 
     def _extract_stream_url(self, text: str, payload: Any) -> str | None:
         """Find a /live/ camera URL or path in MQTT data."""
