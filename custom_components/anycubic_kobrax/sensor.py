@@ -6,7 +6,11 @@ from dataclasses import dataclass
 import logging
 from typing import Any
 
-from homeassistant.components.sensor import SensorDeviceClass, SensorEntity
+from homeassistant.components.sensor import (
+    SensorDeviceClass,
+    SensorEntity,
+    SensorEntityDescription,
+)
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
 from homeassistant.core import HomeAssistant
@@ -51,122 +55,124 @@ from .entity import AnycubicKobraXEntity
 _LOGGER = logging.getLogger(__name__)
 
 
-@dataclass(frozen=True, slots=True)
-class AnycubicSensorDescription:
+@dataclass(frozen=True, kw_only=True)
+class AnycubicSensorDescription(SensorEntityDescription):
     """Describe an Anycubic sensor."""
 
-    key: str
-    translation_key: str
-    device_class: SensorDeviceClass | None = None
-    native_unit_of_measurement: str | None = None
     diagnostic_payload: bool = False
 
 
 SENSORS = (
-    AnycubicSensorDescription(ATTR_LAST_WILL, "last_will"),
-    AnycubicSensorDescription(ATTR_PRINT_STATE, "print_state"),
-    AnycubicSensorDescription(ATTR_PRINTER_NAME, "printer_name"),
-    AnycubicSensorDescription(ATTR_MODEL, "model"),
-    AnycubicSensorDescription(ATTR_FIRMWARE_VERSION, "firmware_version"),
-    AnycubicSensorDescription(ATTR_IP_ADDRESS, "ip_address"),
+    AnycubicSensorDescription(key=ATTR_LAST_WILL, translation_key="last_will"),
+    AnycubicSensorDescription(key=ATTR_PRINT_STATE, translation_key="print_state"),
+    AnycubicSensorDescription(key=ATTR_PRINTER_NAME, translation_key="printer_name"),
+    AnycubicSensorDescription(key=ATTR_MODEL, translation_key="model"),
     AnycubicSensorDescription(
-        ATTR_PROGRESS,
-        "progress",
+        key=ATTR_FIRMWARE_VERSION, translation_key="firmware_version"
+    ),
+    AnycubicSensorDescription(key=ATTR_IP_ADDRESS, translation_key="ip_address"),
+    AnycubicSensorDescription(
+        key=ATTR_PROGRESS,
+        translation_key="progress",
         native_unit_of_measurement=PERCENTAGE,
     ),
-    AnycubicSensorDescription(ATTR_FILENAME, "filename"),
-    AnycubicSensorDescription(ATTR_MATERIAL, "material"),
+    AnycubicSensorDescription(key=ATTR_FILENAME, translation_key="filename"),
+    AnycubicSensorDescription(key=ATTR_MATERIAL, translation_key="material"),
     AnycubicSensorDescription(
-        ATTR_PRINT_SPEED,
-        "print_speed",
+        key=ATTR_PRINT_SPEED,
+        translation_key="print_speed",
     ),
     AnycubicSensorDescription(
-        ATTR_PRINT_SPEED_MODE,
-        "print_speed_mode",
+        key=ATTR_PRINT_SPEED_MODE,
+        translation_key="print_speed_mode",
     ),
     AnycubicSensorDescription(
-        ATTR_REMAINING_TIME,
-        "remaining_time",
+        key=ATTR_REMAINING_TIME,
+        translation_key="remaining_time",
         native_unit_of_measurement="s",
     ),
     AnycubicSensorDescription(
-        ATTR_TOTAL_TIME,
-        "total_time",
+        key=ATTR_TOTAL_TIME,
+        translation_key="total_time",
         native_unit_of_measurement="s",
     ),
     AnycubicSensorDescription(
-        ATTR_NOZZLE_TEMP,
-        "nozzle_temperature",
-        SensorDeviceClass.TEMPERATURE,
-        UnitOfTemperature.CELSIUS,
+        key=ATTR_NOZZLE_TEMP,
+        translation_key="nozzle_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
     ),
     AnycubicSensorDescription(
-        ATTR_BED_TEMP,
-        "bed_temperature",
-        SensorDeviceClass.TEMPERATURE,
-        UnitOfTemperature.CELSIUS,
+        key=ATTR_BED_TEMP,
+        translation_key="bed_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
     ),
     AnycubicSensorDescription(
-        ATTR_TARGET_NOZZLE_TEMP,
-        "target_nozzle_temperature",
-        SensorDeviceClass.TEMPERATURE,
-        UnitOfTemperature.CELSIUS,
+        key=ATTR_TARGET_NOZZLE_TEMP,
+        translation_key="target_nozzle_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
     ),
     AnycubicSensorDescription(
-        ATTR_TARGET_BED_TEMP,
-        "target_bed_temperature",
-        SensorDeviceClass.TEMPERATURE,
-        UnitOfTemperature.CELSIUS,
+        key=ATTR_TARGET_BED_TEMP,
+        translation_key="target_bed_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
     ),
     AnycubicSensorDescription(
-        ATTR_FAN_SPEED,
-        "fan_speed",
+        key=ATTR_FAN_SPEED,
+        translation_key="fan_speed",
         native_unit_of_measurement=PERCENTAGE,
     ),
     AnycubicSensorDescription(
-        ATTR_AUX_FAN_SPEED,
-        "aux_fan_speed",
+        key=ATTR_AUX_FAN_SPEED,
+        translation_key="aux_fan_speed",
         native_unit_of_measurement=PERCENTAGE,
     ),
     AnycubicSensorDescription(
-        ATTR_BOX_FAN_SPEED,
-        "box_fan_speed",
-        native_unit_of_measurement=PERCENTAGE,
-    ),
-    AnycubicSensorDescription(ATTR_CAMERA_AVAILABLE, "camera_available"),
-    AnycubicSensorDescription(ATTR_USB_DISK, "usb_disk"),
-    AnycubicSensorDescription(ATTR_MULTI_COLOR_BOX, "multi_color_box"),
-    AnycubicSensorDescription(ATTR_VIDEO_STATE, "video_state"),
-    AnycubicSensorDescription(
-        ATTR_MULTI_COLOR_BOX_STATUS,
-        "multi_color_box_status",
-    ),
-    AnycubicSensorDescription(
-        ATTR_MULTI_COLOR_BOX_TEMP,
-        "multi_color_box_temperature",
-        SensorDeviceClass.TEMPERATURE,
-        UnitOfTemperature.CELSIUS,
-    ),
-    AnycubicSensorDescription(
-        ATTR_MULTI_COLOR_BOX_HUMIDITY,
-        "multi_color_box_humidity",
+        key=ATTR_BOX_FAN_SPEED,
+        translation_key="box_fan_speed",
         native_unit_of_measurement=PERCENTAGE,
     ),
     AnycubicSensorDescription(
-        ATTR_LOADED_SLOT,
-        "loaded_slot",
+        key=ATTR_CAMERA_AVAILABLE, translation_key="camera_available"
+    ),
+    AnycubicSensorDescription(key=ATTR_USB_DISK, translation_key="usb_disk"),
+    AnycubicSensorDescription(
+        key=ATTR_MULTI_COLOR_BOX, translation_key="multi_color_box"
+    ),
+    AnycubicSensorDescription(key=ATTR_VIDEO_STATE, translation_key="video_state"),
+    AnycubicSensorDescription(
+        key=ATTR_MULTI_COLOR_BOX_STATUS,
+        translation_key="multi_color_box_status",
     ),
     AnycubicSensorDescription(
-        ATTR_LAYER,
-        "layer",
+        key=ATTR_MULTI_COLOR_BOX_TEMP,
+        translation_key="multi_color_box_temperature",
+        device_class=SensorDeviceClass.TEMPERATURE,
+        native_unit_of_measurement=UnitOfTemperature.CELSIUS,
     ),
     AnycubicSensorDescription(
-        ATTR_TOTAL_LAYER,
-        "total_layer",
+        key=ATTR_MULTI_COLOR_BOX_HUMIDITY,
+        translation_key="multi_color_box_humidity",
+        native_unit_of_measurement=PERCENTAGE,
     ),
     AnycubicSensorDescription(
-        ATTR_LAST_TOPIC,
-        "last_mqtt_message",
+        key=ATTR_LOADED_SLOT,
+        translation_key="loaded_slot",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_LAYER,
+        translation_key="layer",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_TOTAL_LAYER,
+        translation_key="total_layer",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_LAST_TOPIC,
+        translation_key="last_mqtt_message",
         diagnostic_payload=True,
     ),
 )
