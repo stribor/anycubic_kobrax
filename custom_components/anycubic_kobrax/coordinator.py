@@ -58,12 +58,15 @@ from .const import (
     ATTR_REMAINING_TIME,
     ATTR_SLICER,
     ATTR_SLOT_COLOR,
+    ATTR_SLOT_COLOR_ALPHA,
+    ATTR_SLOT_COLOR_RGB,
     ATTR_SLOT_PERCENT,
     ATTR_SLOT_SKU,
     ATTR_SLOT_STATUS,
     ATTR_SLOT_TYPE,
     ATTR_SLOT_WEIGHT,
     ATTR_STREAM_URL,
+    ATTR_SUPPLIES_USAGE,
     ATTR_TARGET_BED_TEMP,
     ATTR_TARGET_NOZZLE_TEMP,
     ATTR_TASK_ID,
@@ -587,6 +590,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 if light_state_int is not None:
                     self._state[ATTR_LIGHT_BRIGHTNESS] = 100 if light_state_int else 0
 
+        if message_type in {"print", "buried"} or topic_tail in {"print", "buried"}:
+            data = payload.get("data")
+            if isinstance(data, dict):
+                self._convert_print_minutes_to_seconds(data)
         if message_type == "info" or topic_tail == "info":
             self._merge_info_payload(payload)
 
@@ -688,6 +695,19 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._state[ATTR_SLOT_COLOR[index]] = (
                         f"#{int(color[0]):02x}{int(color[1]):02x}{int(color[2]):02x}"
                     )
+                    self._state[ATTR_SLOT_COLOR_RGB[index]] = [
+                        int(color[0]),
+                        int(color[1]),
+                        int(color[2]),
+                    ]
+                color_group = slot.get("color_group")
+                if (
+                    isinstance(color_group, list)
+                    and color_group
+                    and isinstance(color_group[0], list)
+                    and len(color_group[0]) >= 4
+                ):
+                    self._state[ATTR_SLOT_COLOR_ALPHA[index]] = int(color_group[0][3])
 
     def _merge_file_payload(self, payload: dict[str, Any]) -> None:
         """Merge file metadata without keeping embedded preview images."""
@@ -752,6 +772,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if version:
                 self._state[ATTR_SLICER] = version
 
+        self._convert_print_minutes_to_seconds(data)
+
     def _merge_info_payload(self, payload: dict[str, Any]) -> None:
         """Merge nested project data from info reports."""
         data = payload.get("data")
@@ -778,6 +800,19 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             value = _first_present(project, keys)
             if value is not None:
                 self._state[attr] = value
+
+        self._convert_print_minutes_to_seconds(project)
+
+    def _convert_print_minutes_to_seconds(self, data: dict[str, Any]) -> None:
+        """Convert Anycubic print_time/remain_time minutes to HA seconds."""
+        if "print_time" in data:
+            total_time = _coerce_int(data.get("print_time"))
+            if total_time is not None:
+                self._state[ATTR_TOTAL_TIME] = total_time * 60
+        if "remain_time" in data:
+            remaining_time = _coerce_int(data.get("remain_time"))
+            if remaining_time is not None:
+                self._state[ATTR_REMAINING_TIME] = remaining_time * 60
 
     def _extract_stream_url(self, text: str, payload: Any) -> str | None:
         """Find a /live/ camera URL or path in MQTT data."""

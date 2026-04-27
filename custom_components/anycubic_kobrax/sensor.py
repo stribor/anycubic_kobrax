@@ -53,6 +53,8 @@ from .const import (
     ATTR_REMAINING_TIME,
     ATTR_SLICER,
     ATTR_SLOT_COLOR,
+    ATTR_SLOT_COLOR_ALPHA,
+    ATTR_SLOT_COLOR_RGB,
     ATTR_SLOT_PERCENT,
     ATTR_SLOT_SKU,
     ATTR_SLOT_STATUS,
@@ -297,6 +299,17 @@ class AnycubicKobraXSensor(AnycubicKobraXEntity, SensorEntity):
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return diagnostic MQTT payload attributes."""
         if not self.entity_description.diagnostic_payload:
+            key = self.entity_description.key
+            if key in ATTR_SLOT_COLOR:
+                index = ATTR_SLOT_COLOR.index(key)
+                attrs: dict[str, Any] = {}
+                rgb = self.coordinator.data.get(ATTR_SLOT_COLOR_RGB[index])
+                alpha = self.coordinator.data.get(ATTR_SLOT_COLOR_ALPHA[index])
+                if rgb is not None:
+                    attrs["rgb"] = rgb
+                if alpha is not None:
+                    attrs["alpha"] = alpha
+                return attrs or None
             return None
         payload = self.coordinator.data.get("last_payload")
         return {"payload": payload} if payload is not None else None
