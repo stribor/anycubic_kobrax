@@ -2,9 +2,11 @@
 
 from __future__ import annotations
 
+import base64
+import binascii
 from collections.abc import Mapping
 from dataclasses import dataclass
-from datetime import timedelta
+from datetime import datetime, timedelta, timezone
 import json
 import logging
 import re
@@ -130,6 +132,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._raw_messages: dict[str, Any] = {}
         self._state: dict[str, Any] = {}
         self._requested_file_details: set[str] = set()
+        self.preview_image: bytes | None = None
+        self.preview_image_content_type = "image/png"
+        self.preview_image_updated: datetime | None = None
         super().__init__(
             hass,
             _LOGGER,
@@ -743,6 +748,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         details = data.get("file_details")
         if not isinstance(details, dict):
             return
+        self._merge_preview_image(details)
         paint_infos = details.get("paint_infos")
         if isinstance(paint_infos, list) and paint_infos:
             paint_info = paint_infos[0]
@@ -754,6 +760,25 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     self._state[ATTR_FILAMENT_USED] = paint_info["filament_used"]
                     if self._state.get(ATTR_ESTIMATE_WEIGHT) is None:
                         self._state[ATTR_ESTIMATE_WEIGHT] = paint_info["filament_used"]
+
+    def _merge_preview_image(self, details: dict[str, Any]) -> None:
+        """Keep the newest file preview in memory without storing it in state."""
+        encoded = details.get("png_image") or details.get("thumbnail")
+        if not isinstance(encoded, str) or not encoded:
+            return
+
+        try:
+            image = base64.b64decode(encoded, validate=True)
+        except (binascii.Error, ValueError):
+            _LOGGER.debug("Ignoring invalid Anycubic file preview image")
+            return
+
+        if image == self.preview_image:
+            return
+
+        self.preview_image = image
+        self.preview_image_content_type = "image/png"
+        self.preview_image_updated = datetime.now(timezone.utc)
 
     def _merge_print_payload(self, payload: dict[str, Any]) -> None:
         """Merge print lifecycle and buried metadata."""

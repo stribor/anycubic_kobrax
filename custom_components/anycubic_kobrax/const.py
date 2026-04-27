@@ -17,7 +17,7 @@ DEFAULT_TYPE_ID = 20030
 DEFAULT_MQTT_USERNAME = ""
 DEFAULT_MQTT_PASSWORD = ""
 
-PLATFORMS = ["sensor", "light", "camera", "button", "number"]
+PLATFORMS = ["sensor", "light", "camera", "button", "number", "image"]
 
 QUERY_SPECS = (
     ("web", "lastWill", "query"),

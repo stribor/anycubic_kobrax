@@ -331,6 +331,11 @@
       "fan_speed": {
         "name": "Fan speed"
       }
+    },
+    "image": {
+      "preview_image": {
+        "name": "Preview image"
+      }
     }
   }
 }
