@@ -85,6 +85,14 @@ from .const import (
     DEFAULT_HTTP_PORT,
     DEFAULT_MQTT_PORT,
     DOMAIN,
+    EVENT_AXIS_ERROR,
+    EVENT_PRINT_COMPLETED,
+    EVENT_PRINT_FAILED,
+    EVENT_PRINT_PAUSED,
+    EVENT_PRINT_PREHEATING,
+    EVENT_PRINT_PRINTING,
+    EVENT_PRINT_STARTED,
+    EVENT_PRINT_STOPPED,
     QUERY_SPECS,
     TOPIC_BASE,
 )
@@ -132,6 +140,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._raw_messages: dict[str, Any] = {}
         self._state: dict[str, Any] = {}
         self._requested_file_details: set[str] = set()
+        self._event_sequence = 0
+        self._last_axis_event_msgid: str | None = None
+        self._last_print_event_state: str | None = None
+        self.latest_event: dict[str, Any] | None = None
         self.preview_image: bytes | None = None
         self.preview_image_content_type = "image/png"
         self.preview_image_updated: datetime | None = None
@@ -464,6 +476,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._state[ATTR_AXIS_CODE] = payload["code"]
             if "msg" in payload:
                 self._state[ATTR_AXIS_MESSAGE] = payload["msg"]
+            self._record_axis_event(payload)
         if message_type in {"print", "buried"} or topic_tail in {"print", "buried"}:
             self._merge_print_payload(payload)
         if message_type == "file" or topic_tail == "file":
@@ -819,6 +832,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         self._convert_print_minutes_to_seconds(data)
         self._derive_print_estimates()
+        self._record_print_event(payload, data)
         if filename := self._state.get(ATTR_FILENAME):
             self.request_file_details(str(filename), str(self._state.get(ATTR_FILE_ROOT, "local")))
 
@@ -851,8 +865,89 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         self._convert_print_minutes_to_seconds(project)
         self._derive_print_estimates()
+        self._record_print_event(payload, project)
         if filename := self._state.get(ATTR_FILENAME):
             self.request_file_details(str(filename), str(self._state.get(ATTR_FILE_ROOT, "local")))
+
+    def _record_axis_event(self, payload: dict[str, Any]) -> None:
+        """Record actionable axis errors as Home Assistant events."""
+        code = _coerce_int(payload.get("code"))
+        state = str(payload.get("state", "")).lower()
+        if state != "failed" and (code is None or code in {0, 200}):
+            return
+
+        msgid = str(payload.get("msgid") or "")
+        if msgid and msgid == self._last_axis_event_msgid:
+            return
+        self._last_axis_event_msgid = msgid
+        self._record_event(
+            EVENT_AXIS_ERROR,
+            {
+                "code": code,
+                "message": payload.get("msg"),
+                "state": payload.get("state"),
+                "action": payload.get("action"),
+                "msgid": payload.get("msgid"),
+            },
+        )
+
+    def _record_print_event(
+        self, payload: dict[str, Any], data: dict[str, Any]
+    ) -> None:
+        """Record print lifecycle changes as Home Assistant events."""
+        state = str(data.get("state") or payload.get("state") or "").lower()
+        action = str(payload.get("action") or "").lower()
+        event_type: str | None = None
+        if state in {"checking", "auto_leveling"} or action == "printstart":
+            event_type = EVENT_PRINT_STARTED
+        elif state == "preheating":
+            event_type = EVENT_PRINT_PREHEATING
+        elif state in {"printing", "updated"}:
+            event_type = EVENT_PRINT_PRINTING
+        elif state in {"finished", "finish", "completed", "done"}:
+            event_type = EVENT_PRINT_COMPLETED
+        elif state == "paused":
+            event_type = EVENT_PRINT_PAUSED
+        elif state in {"cancelled", "canceled", "stopped"}:
+            event_type = EVENT_PRINT_STOPPED
+        elif state in {"failed", "error"} or (
+            (code := _coerce_int(payload.get("code"))) is not None
+            and code not in {0, 200}
+        ):
+            event_type = EVENT_PRINT_FAILED
+
+        if event_type is None:
+            return
+        dedupe_state = (
+            f"{event_type}:{data.get('taskid') or data.get('task_id')}:"
+            f"{data.get('filename') or data.get('task_name')}"
+        )
+        if dedupe_state == self._last_print_event_state:
+            return
+        self._last_print_event_state = dedupe_state
+        self._record_event(
+            event_type,
+            {
+                "state": payload.get("state") or data.get("state"),
+                "action": payload.get("action"),
+                "code": payload.get("code"),
+                "message": payload.get("msg"),
+                "filename": data.get("filename") or data.get("task_name"),
+                "progress": data.get("progress"),
+                "layer": data.get("curr_layer"),
+                "total_layers": data.get("total_layers"),
+                "msgid": payload.get("msgid"),
+            },
+        )
+
+    def _record_event(self, event_type: str, data: dict[str, Any]) -> None:
+        """Store the latest event for the event entity to fire."""
+        self._event_sequence += 1
+        self.latest_event = {
+            "sequence": self._event_sequence,
+            "event_type": event_type,
+            "data": {key: value for key, value in data.items() if value is not None},
+        }
 
     def _convert_print_minutes_to_seconds(self, data: dict[str, Any]) -> None:
         """Convert Anycubic print_time/remain_time minutes to HA seconds."""

@@ -17,7 +17,26 @@ DEFAULT_TYPE_ID = 20030
 DEFAULT_MQTT_USERNAME = ""
 DEFAULT_MQTT_PASSWORD = ""
 
-PLATFORMS = ["sensor", "light", "camera", "button", "number", "image"]
+PLATFORMS = ["sensor", "light", "camera", "button", "number", "image", "event"]
+
+EVENT_AXIS_ERROR = "axis_error"
+EVENT_PRINT_STARTED = "print_started"
+EVENT_PRINT_PREHEATING = "print_preheating"
+EVENT_PRINT_PRINTING = "print_printing"
+EVENT_PRINT_COMPLETED = "print_completed"
+EVENT_PRINT_PAUSED = "print_paused"
+EVENT_PRINT_STOPPED = "print_stopped"
+EVENT_PRINT_FAILED = "print_failed"
+EVENT_TYPES = [
+    EVENT_AXIS_ERROR,
+    EVENT_PRINT_STARTED,
+    EVENT_PRINT_PREHEATING,
+    EVENT_PRINT_PRINTING,
+    EVENT_PRINT_COMPLETED,
+    EVENT_PRINT_PAUSED,
+    EVENT_PRINT_STOPPED,
+    EVENT_PRINT_FAILED,
+]
 
 QUERY_SPECS = (
     ("web", "lastWill", "query"),

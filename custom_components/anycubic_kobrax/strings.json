@@ -336,6 +336,11 @@
       "preview_image": {
         "name": "Preview image"
       }
+    },
+    "event": {
+      "printer_event": {
+        "name": "Printer event"
+      }
     }
   }
 }
