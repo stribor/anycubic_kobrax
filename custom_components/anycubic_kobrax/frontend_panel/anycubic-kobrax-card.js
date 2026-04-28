@@ -17,15 +17,15 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 5;
+    return 9;
   }
 
   getGridOptions() {
     return {
-      rows: 5,
+      rows: 10,
       columns: 6,
-      min_rows: 4,
-      min_columns: 3,
+      min_rows: 8,
+      min_columns: 4,
     };
   }
 
@@ -58,26 +58,34 @@ class AnycubicKobraXCard extends HTMLElement {
           box-sizing: border-box;
         }
 
+        :host {
+          container-type: inline-size;
+          display: block;
+          min-width: 0;
+        }
+
         ha-card {
           background: var(--ha-card-background, #30333d);
           border-radius: var(--ha-card-border-radius, 8px);
           color: var(--primary-text-color, #f3f4f8);
+          display: block;
           overflow: hidden;
-          padding: 28px;
+          padding: 18px;
+          width: 100%;
         }
 
         .top {
           align-items: center;
           display: grid;
-          grid-template-columns: 40px 1fr 40px;
-          gap: 14px;
-          margin-bottom: 20px;
+          grid-template-columns: 32px minmax(0, 1fr) 32px;
+          gap: 12px;
+          margin-bottom: 14px;
         }
 
         .title {
           align-items: center;
           display: flex;
-          font-size: 28px;
+          font-size: 22px;
           font-weight: 760;
           justify-content: center;
           line-height: 1.1;
@@ -96,61 +104,61 @@ class AnycubicKobraXCard extends HTMLElement {
           border-radius: 50%;
           display: inline-block;
           flex: 0 0 auto;
-          height: 13px;
-          margin-right: 13px;
-          width: 13px;
+          height: 12px;
+          margin-right: 12px;
+          width: 12px;
         }
 
         .icon {
           align-items: center;
           color: #f2f3f7;
           display: inline-flex;
-          height: 40px;
+          height: 32px;
           justify-content: center;
           opacity: 0.95;
-          width: 40px;
+          width: 32px;
         }
 
         .icon svg {
-          height: 30px;
-          width: 30px;
+          height: 28px;
+          width: 28px;
         }
 
         .main {
           align-items: center;
           display: grid;
-          gap: 28px;
-          grid-template-columns: minmax(190px, 1fr) minmax(230px, 0.9fr);
+          gap: 16px;
+          grid-template-columns: minmax(0, 1fr);
         }
 
         .printer {
           align-items: center;
           display: flex;
           justify-content: center;
-          min-height: 240px;
+          min-height: 180px;
         }
 
         .printer img {
           display: block;
           filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.24));
           height: auto;
-          max-height: 265px;
+          max-height: 210px;
           max-width: 100%;
           object-fit: contain;
         }
 
         .progress {
-          font-size: 54px;
+          font-size: 44px;
           font-weight: 800;
           line-height: 1;
-          margin-bottom: 24px;
+          margin-bottom: 16px;
           text-align: center;
         }
 
         .stats {
           display: grid;
-          font-size: 21px;
-          gap: 8px 22px;
+          font-size: 18px;
+          gap: 7px 18px;
           grid-template-columns: auto 1fr;
           line-height: 1.1;
         }
@@ -169,9 +177,9 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .slots {
           display: grid;
-          gap: 14px;
-          grid-template-columns: repeat(4, minmax(66px, 1fr));
-          margin: 30px auto 0;
+          gap: 12px;
+          grid-template-columns: repeat(4, minmax(56px, 1fr));
+          margin: 22px auto 0;
           max-width: 520px;
         }
 
@@ -187,25 +195,25 @@ class AnycubicKobraXCard extends HTMLElement {
           background: var(--slot-color, #bfc0c2);
           border-radius: 50%;
           display: flex;
-          height: 76px;
+          height: 64px;
           justify-content: center;
-          margin-bottom: 9px;
+          margin-bottom: 8px;
           position: relative;
-          width: 76px;
+          width: 64px;
         }
 
         .spool::after {
           background: #f6f7fa;
           border-radius: 50%;
           content: "";
-          height: 39px;
+          height: 34px;
           position: absolute;
-          width: 39px;
+          width: 34px;
         }
 
         .slot-number {
           color: #333741;
-          font-size: 18px;
+          font-size: 17px;
           font-weight: 800;
           position: relative;
           z-index: 1;
@@ -213,7 +221,7 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .filament {
           color: #f1f2f6;
-          font-size: 18px;
+          font-size: 16px;
           font-weight: 760;
           line-height: 1.1;
           max-width: 100%;
@@ -228,42 +236,71 @@ class AnycubicKobraXCard extends HTMLElement {
           --slot-color: #bfc0c2;
         }
 
-        @media (max-width: 560px) {
+        @container (min-width: 620px) {
           ha-card {
-            padding: 18px;
+            padding: 28px;
           }
 
           .top {
-            grid-template-columns: 32px 1fr 32px;
-            margin-bottom: 14px;
+            grid-template-columns: 40px minmax(0, 1fr) 40px;
+            gap: 14px;
+            margin-bottom: 20px;
           }
 
           .title {
-            font-size: 22px;
+            font-size: 28px;
           }
 
           .main {
-            gap: 18px;
-            grid-template-columns: 1fr;
+            gap: 28px;
+            grid-template-columns: minmax(190px, 1fr) minmax(230px, 0.9fr);
           }
 
           .printer {
-            min-height: 190px;
+            min-height: 240px;
           }
 
           .printer img {
-            max-height: 215px;
+            max-height: 265px;
           }
 
           .progress {
-            font-size: 46px;
-            margin-bottom: 18px;
+            font-size: 54px;
+            margin-bottom: 24px;
           }
 
           .stats {
-            font-size: 19px;
+            font-size: 21px;
+            gap: 8px 22px;
           }
 
+          .slots {
+            gap: 14px;
+            grid-template-columns: repeat(4, minmax(66px, 1fr));
+            margin-top: 30px;
+          }
+
+          .spool {
+            height: 76px;
+            margin-bottom: 9px;
+            width: 76px;
+          }
+
+          .spool::after {
+            height: 39px;
+            width: 39px;
+          }
+
+          .slot-number {
+            font-size: 18px;
+          }
+
+          .filament {
+            font-size: 18px;
+          }
+        }
+
+        @container (max-width: 360px) {
           .slots {
             grid-template-columns: repeat(2, minmax(96px, 1fr));
           }
