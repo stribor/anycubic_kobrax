@@ -22,9 +22,8 @@ class AnycubicKobraXCard extends HTMLElement {
 
   getGridOptions() {
     return {
-      rows: 9,
-      columns: 6,
-      min_rows: 7,
+      rows: "auto",
+      columns: 12,
       min_columns: 4,
     };
   }
@@ -32,6 +31,39 @@ class AnycubicKobraXCard extends HTMLElement {
   static getStubConfig() {
     return {
       name: "Anycubic Kobra X",
+      grid_options: {
+        columns: 12,
+        rows: "auto",
+      },
+    };
+  }
+
+  static getConfigForm() {
+    return {
+      schema: [
+        {
+          name: "name",
+          selector: {
+            text: {},
+          },
+        },
+        {
+          name: "image",
+          selector: {
+            text: {},
+          },
+        },
+      ],
+      computeLabel: (schema) => {
+        switch (schema.name) {
+          case "name":
+            return "Name";
+          case "image":
+            return "Image URL";
+          default:
+            return schema.name;
+        }
+      },
     };
   }
 
