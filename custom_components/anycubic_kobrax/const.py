@@ -4,6 +4,9 @@ from __future__ import annotations
 
 DOMAIN = "anycubic_kobrax"
 
+FRONTEND_FOLDER = "frontend_panel"
+CARD_FILENAME = "anycubic-kobrax-card.js"
+
 CONF_HOST = "host"
 CONF_TYPE_ID = "type_id"
 CONF_PRINTER_ID = "printer_id"

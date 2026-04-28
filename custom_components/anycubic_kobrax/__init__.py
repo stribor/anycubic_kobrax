@@ -8,6 +8,7 @@ from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PLATFORMS
 from .coordinator import AnycubicKobraXCoordinator
+from .frontend import async_register_frontend
 
 
 async def async_setup_entry(
@@ -22,6 +23,7 @@ async def async_setup_entry(
     entry.runtime_data = coordinator
 
     await hass.config_entries.async_forward_entry_setups(entry, PLATFORMS)
+    await async_register_frontend(hass)
     entry.async_on_unload(entry.add_update_listener(_async_update_listener))
     return True
 
