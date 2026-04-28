@@ -6,6 +6,7 @@ DOMAIN = "anycubic_kobrax"
 
 FRONTEND_FOLDER = "frontend_panel"
 CARD_FILENAME = "anycubic-kobrax-card.js"
+CARD_VERSION = "0.1.0"
 
 CONF_HOST = "host"
 CONF_TYPE_ID = "type_id"

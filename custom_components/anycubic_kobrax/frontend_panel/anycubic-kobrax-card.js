@@ -20,6 +20,21 @@ class AnycubicKobraXCard extends HTMLElement {
     return 5;
   }
 
+  getGridOptions() {
+    return {
+      rows: 5,
+      columns: 6,
+      min_rows: 4,
+      min_columns: 3,
+    };
+  }
+
+  static getStubConfig() {
+    return {
+      name: "Anycubic Kobra X",
+    };
+  }
+
   _render() {
     if (!this._hass) {
       return;
@@ -435,11 +450,15 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 }
 
-customElements.define("anycubic-kobrax-card", AnycubicKobraXCard);
+if (!customElements.get("anycubic-kobrax-card")) {
+  customElements.define("anycubic-kobrax-card", AnycubicKobraXCard);
+}
 
 window.customCards = window.customCards || [];
-window.customCards.push({
-  type: "anycubic-kobrax-card",
-  name: "Anycubic Kobra X",
-  description: "Printer progress, temperatures, timing, and filament slots.",
-});
+if (!window.customCards.some((card) => card.type === "anycubic-kobrax-card")) {
+  window.customCards.push({
+    type: "anycubic-kobrax-card",
+    name: "Anycubic Kobra X",
+    description: "Printer progress, temperatures, timing, and filament slots.",
+  });
+}

@@ -2,7 +2,7 @@
   "domain": "anycubic_kobrax",
   "name": "Anycubic Kobra X",
   "after_dependencies": ["ffmpeg", "stream"],
-  "dependencies": ["http"],
+  "dependencies": ["http", "lovelace"],
   "codeowners": [],
   "config_flow": true,
   "documentation": "https://github.com/custom-components/anycubic_kobrax",
