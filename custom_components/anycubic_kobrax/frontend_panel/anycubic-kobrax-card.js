@@ -17,14 +17,14 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 9;
+    return 8;
   }
 
   getGridOptions() {
     return {
-      rows: 10,
+      rows: 9,
       columns: 6,
-      min_rows: 8,
+      min_rows: 7,
       min_columns: 4,
     };
   }
@@ -51,6 +51,11 @@ class AnycubicKobraXCard extends HTMLElement {
     const status = this._formatStatus(this._string(get("print_state")) || this._state(get("last_will")));
     const elapsed = this._formatDuration(this._seconds(get("total_time")));
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
+    const lightState = get("light");
+    const lightIsOn = lightState?.state === "on";
+    const lightTitle = lightState
+      ? `Turn ${lightIsOn ? "off" : "on"} printer light`
+      : "Printer light entity not found";
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -70,7 +75,7 @@ class AnycubicKobraXCard extends HTMLElement {
           color: var(--primary-text-color, #f3f4f8);
           display: block;
           overflow: hidden;
-          padding: 18px;
+          padding: 16px;
           width: 100%;
         }
 
@@ -116,7 +121,23 @@ class AnycubicKobraXCard extends HTMLElement {
           height: 32px;
           justify-content: center;
           opacity: 0.95;
+          padding: 0;
           width: 32px;
+        }
+
+        button.icon {
+          background: none;
+          border: 0;
+          cursor: pointer;
+        }
+
+        button.icon[disabled] {
+          cursor: default;
+          opacity: 0.45;
+        }
+
+        .icon.active {
+          color: #ffd86b;
         }
 
         .icon svg {
@@ -135,30 +156,30 @@ class AnycubicKobraXCard extends HTMLElement {
           align-items: center;
           display: flex;
           justify-content: center;
-          min-height: 180px;
+          min-height: 150px;
         }
 
         .printer img {
           display: block;
           filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.24));
           height: auto;
-          max-height: 210px;
+          max-height: 180px;
           max-width: 100%;
           object-fit: contain;
         }
 
         .progress {
-          font-size: 44px;
+          font-size: 42px;
           font-weight: 800;
           line-height: 1;
-          margin-bottom: 16px;
+          margin-bottom: 14px;
           text-align: center;
         }
 
         .stats {
           display: grid;
-          font-size: 18px;
-          gap: 7px 18px;
+          font-size: 17px;
+          gap: 6px 16px;
           grid-template-columns: auto 1fr;
           line-height: 1.1;
         }
@@ -177,9 +198,9 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .slots {
           display: grid;
-          gap: 12px;
-          grid-template-columns: repeat(4, minmax(56px, 1fr));
-          margin: 22px auto 0;
+          gap: 8px;
+          grid-template-columns: repeat(4, minmax(42px, 1fr));
+          margin: 18px auto 0;
           max-width: 520px;
         }
 
@@ -195,25 +216,28 @@ class AnycubicKobraXCard extends HTMLElement {
           background: var(--slot-color, #bfc0c2);
           border-radius: 50%;
           display: flex;
-          height: 64px;
+          height: 54px;
+          height: clamp(46px, 17cqw, 64px);
           justify-content: center;
-          margin-bottom: 8px;
+          margin-bottom: 7px;
           position: relative;
-          width: 64px;
+          width: 54px;
+          width: clamp(46px, 17cqw, 64px);
         }
 
         .spool::after {
           background: #f6f7fa;
           border-radius: 50%;
           content: "";
-          height: 34px;
+          height: 53%;
           position: absolute;
-          width: 34px;
+          width: 53%;
         }
 
         .slot-number {
           color: #333741;
-          font-size: 17px;
+          font-size: 16px;
+          font-size: clamp(14px, 4cqw, 17px);
           font-weight: 800;
           position: relative;
           z-index: 1;
@@ -221,7 +245,8 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .filament {
           color: #f1f2f6;
-          font-size: 16px;
+          font-size: 15px;
+          font-size: clamp(13px, 3.8cqw, 16px);
           font-weight: 760;
           line-height: 1.1;
           max-width: 100%;
@@ -299,12 +324,6 @@ class AnycubicKobraXCard extends HTMLElement {
             font-size: 18px;
           }
         }
-
-        @container (max-width: 360px) {
-          .slots {
-            grid-template-columns: repeat(2, minmax(96px, 1fr));
-          }
-        }
       </style>
       <ha-card>
         <header class="top">
@@ -313,7 +332,13 @@ class AnycubicKobraXCard extends HTMLElement {
             <span class="dot"></span>
             <span class="title-text">${this._escape(title)}</span>
           </div>
-          <span class="icon" title="Light">${this._lightIcon()}</span>
+          <button
+            type="button"
+            class="icon light-toggle ${lightIsOn ? "active" : ""}"
+            title="${this._escapeAttribute(lightTitle)}"
+            ${lightState ? "" : "disabled"}
+            aria-label="${this._escapeAttribute(lightTitle)}"
+          >${this._lightIcon()}</button>
         </header>
 
         <div class="main">
@@ -336,6 +361,11 @@ class AnycubicKobraXCard extends HTMLElement {
         <div class="slots">${slotCards.join("")}</div>
       </ha-card>
     `;
+
+    const lightButton = this.shadowRoot.querySelector(".light-toggle");
+    if (lightButton && lightState) {
+      lightButton.addEventListener("click", () => this._toggleLight(lightState));
+    }
   }
 
   _entityFromConfig(key) {
@@ -350,6 +380,7 @@ class AnycubicKobraXCard extends HTMLElement {
       return entityId.includes("anycubic_kobra_x") || name.includes("Anycubic Kobra X");
     });
     const keys = [
+      "light",
       "last_will",
       "printer_name",
       "print_state",
@@ -366,12 +397,28 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _findByKey(states, key) {
+    if (key === "light") {
+      return states.find((state) => state.entity_id?.startsWith("light."));
+    }
     const normalizedKey = key.replaceAll("_", "");
     return states.find((state) => {
       const entityId = state.entity_id?.split(".").pop()?.replaceAll("_", "") || "";
       const name = state.attributes?.friendly_name?.toLowerCase().replaceAll(/\s+/g, "") || "";
       return entityId.endsWith(normalizedKey) || name.endsWith(normalizedKey);
     });
+  }
+
+  _toggleLight(lightState) {
+    if (!lightState) {
+      return;
+    }
+    this._hass.callService(
+      "light",
+      lightState.state === "on" ? "turn_off" : "turn_on",
+      {
+        entity_id: lightState.entity_id,
+      },
+    );
   }
 
   _renderSlot(slot, get) {
