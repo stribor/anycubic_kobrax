@@ -81,7 +81,7 @@ class AnycubicKobraXCard extends HTMLElement {
     const progress = this._number(get("progress"), 0);
     const title = this._config.name || this._string(get("printer_name")) || "Anycubic Kobra X";
     const status = this._formatStatus(this._string(get("print_state")) || this._state(get("last_will")));
-    const elapsed = this._formatDuration(this._seconds(get("total_time")));
+    const elapsed = this._formatDuration(this._seconds(get("total_time")), false);
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
     const lightState = get("light");
     const lightIsOn = lightState?.state === "on";
@@ -396,7 +396,8 @@ class AnycubicKobraXCard extends HTMLElement {
               <div class="label">Elapsed</div><div class="value">${this._escape(elapsed)}</div>
               <div class="label">Hotend</div><div class="value">${this._escape(this._formatTemp(get("nozzle_temperature")))}</div>
               <div class="label">Bed</div><div class="value">${this._escape(this._formatTemp(get("bed_temperature")))}</div>
-              <div class="label">Remaining</div><div class="value">${this._escape(this._formatDuration(remaining))}</div>
+              <div class="label">Fan</div><div class="value">${this._escape(this._formatPercent(this._number(get("fan_speed"))))}</div>
+              <div class="label">Remaining</div><div class="value">${this._escape(this._formatDuration(remaining, false))}</div>
             </div>
           </div>
         </div>
@@ -432,6 +433,7 @@ class AnycubicKobraXCard extends HTMLElement {
       "total_time",
       "nozzle_temperature",
       "bed_temperature",
+      "fan_speed",
     ];
     for (let slot = 1; slot <= 4; slot += 1) {
       keys.push(`slot_${slot}_type`, `slot_${slot}_color`);
@@ -531,13 +533,22 @@ class AnycubicKobraXCard extends HTMLElement {
     return value === null ? "--" : `${value.toFixed(2)}°C`;
   }
 
-  _formatDuration(seconds) {
+  _formatDuration(seconds, showSeconds = true) {
     if (seconds === null) {
       return "--";
     }
     const hours = Math.floor(seconds / 3600);
     const minutes = Math.floor((seconds % 3600) / 60);
     const secs = seconds % 60;
+    if (!showSeconds) {
+      if (hours > 0) {
+        return `${hours}h ${minutes}min`;
+      }
+      if (minutes > 0) {
+        return `${minutes}min`;
+      }
+      return "<1min";
+    }
     if (hours > 0) {
       return `${hours}h ${minutes}m ${secs}s`;
     }
