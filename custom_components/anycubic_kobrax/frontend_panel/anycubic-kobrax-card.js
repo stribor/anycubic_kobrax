@@ -1045,7 +1045,7 @@ class AnycubicKobraXAxisCard extends HTMLElement {
 
           <div class="xy-pad" aria-label="Move X and Y axes">
             <button type="button" class="move-button up" data-move="y:${this._distance}">
-              <span class="direction">▲ Y+</span>
+              <span class="direction">▲<br>Y+</span>
             </button>
             <button type="button" class="move-button left" data-move="x:${-this._distance}">
               <span class="direction">◄ X-</span>
@@ -1057,7 +1057,7 @@ class AnycubicKobraXAxisCard extends HTMLElement {
               <span class="direction">X+ ►</span>
             </button>
             <button type="button" class="move-button down" data-move="y:${-this._distance}">
-              <span class="direction">Y- ▼</span>
+              <span class="direction">Y-<br>▼</span>
             </button>
           </div>
 
