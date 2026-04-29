@@ -995,12 +995,11 @@ class AnycubicKobraXAxisCard extends HTMLElement {
         @container (max-width: 520px) {
           .controls {
             gap: 16px;
-            grid-template-columns: minmax(0, 1fr) minmax(72px, 0.32fr);
+            grid-template-columns: 64px minmax(0, 1fr) 72px;
           }
 
           .side-actions {
-            grid-column: 1 / -1;
-            grid-template-columns: repeat(2, 64px);
+            grid-column: auto;
           }
 
           .z-stack {
