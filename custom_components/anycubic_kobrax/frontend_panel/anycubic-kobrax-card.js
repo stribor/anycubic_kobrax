@@ -600,3 +600,472 @@ if (!window.customCards.some((card) => card.type === "anycubic-kobrax-card")) {
     description: "Printer progress, temperatures, timing, and filament slots.",
   });
 }
+
+class AnycubicKobraXAxisCard extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._config = {};
+    this._hass = undefined;
+    this._distance = 1;
+  }
+
+  setConfig(config) {
+    this._config = config || {};
+    const distances = this._distances();
+    this._distance = Number(this._config.default_distance) || distances[0];
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  getCardSize() {
+    return 5;
+  }
+
+  getGridOptions() {
+    return {
+      rows: "auto",
+      columns: 12,
+      min_columns: 4,
+    };
+  }
+
+  static getStubConfig() {
+    return {
+      name: "Axis Move",
+      distances: [1, 15, 50],
+      default_distance: 1,
+      grid_options: {
+        columns: 12,
+        rows: "auto",
+      },
+    };
+  }
+
+  static getConfigForm() {
+    return {
+      schema: [
+        { name: "name", selector: { text: {} } },
+        { name: "config_entry_id", selector: { text: {} } },
+        {
+          name: "default_distance",
+          selector: {
+            number: {
+              mode: "box",
+              min: 0.1,
+              max: 100,
+              step: 0.1,
+              unit_of_measurement: "mm",
+            },
+          },
+        },
+      ],
+      computeLabel: (schema) => {
+        switch (schema.name) {
+          case "name":
+            return "Name";
+          case "config_entry_id":
+            return "Config entry ID";
+          case "default_distance":
+            return "Default distance";
+          default:
+            return schema.name;
+        }
+      },
+      computeHelper: (schema) => {
+        if (schema.name === "config_entry_id") {
+          return "Only needed when multiple Anycubic Kobra X printers are loaded.";
+        }
+        return undefined;
+      },
+    };
+  }
+
+  _render() {
+    if (!this._hass) {
+      return;
+    }
+
+    const distances = this._distances();
+    if (!distances.includes(this._distance)) {
+      this._distance = distances[0];
+    }
+    const title = this._config.name || "Axis Move";
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        *, *::before, *::after {
+          box-sizing: border-box;
+        }
+
+        :host {
+          container-type: inline-size;
+          display: block;
+          font-family: var(--ha-font-family-body, inherit);
+          min-width: 0;
+        }
+
+        ha-card {
+          background: var(
+            --ha-card-background,
+            var(--card-background-color, #fff)
+          );
+          border: var(--ha-card-border-width, 1px) solid
+            var(--ha-card-border-color, var(--divider-color, transparent));
+          border-radius: var(--ha-card-border-radius, 8px);
+          box-shadow: var(--ha-card-box-shadow, none);
+          color: var(--primary-text-color);
+          display: block;
+          overflow: hidden;
+          padding: 16px;
+          width: 100%;
+        }
+
+        .title {
+          font-family: var(--ha-font-family-heading, inherit);
+          font-size: 1.25rem;
+          font-weight: 500;
+          line-height: 1.2;
+          margin: 0 0 16px;
+        }
+
+        .distance-tabs {
+          background: var(--secondary-background-color);
+          border-radius: 10px;
+          display: grid;
+          gap: 2px;
+          grid-template-columns: repeat(${distances.length}, minmax(0, 1fr));
+          margin-bottom: 22px;
+          overflow: hidden;
+          padding: 2px;
+        }
+
+        .distance {
+          background: transparent;
+          border: 0;
+          border-radius: 8px;
+          color: var(--secondary-text-color);
+          cursor: pointer;
+          font: inherit;
+          font-size: 1rem;
+          font-weight: 500;
+          min-height: 42px;
+        }
+
+        .distance.active {
+          background: var(--accent-color);
+          color: var(--text-primary-color, #fff);
+        }
+
+        .controls {
+          align-items: center;
+          display: grid;
+          gap: 18px;
+          grid-template-columns: minmax(82px, 0.7fr) minmax(176px, 1.3fr) minmax(70px, 0.55fr);
+          justify-items: center;
+        }
+
+        .side-actions {
+          display: grid;
+          gap: 14px;
+          justify-items: center;
+        }
+
+        .round-button,
+        .move-button,
+        .z-button {
+          align-items: center;
+          background: var(--secondary-background-color);
+          border: var(--ha-card-border-width, 1px) solid
+            var(--ha-card-border-color, var(--divider-color, transparent));
+          color: var(--primary-text-color);
+          cursor: pointer;
+          display: inline-flex;
+          font: inherit;
+          justify-content: center;
+          min-width: 0;
+          user-select: none;
+        }
+
+        .round-button {
+          border-radius: 50%;
+          height: 64px;
+          width: 64px;
+        }
+
+        .round-button ha-icon,
+        .home-icon {
+          color: var(--accent-color);
+        }
+
+        .xy-pad {
+          aspect-ratio: 1;
+          display: grid;
+          grid-template-areas:
+            ". up ."
+            "left home right"
+            ". down .";
+          grid-template-columns: repeat(3, minmax(44px, 1fr));
+          grid-template-rows: repeat(3, minmax(44px, 1fr));
+          max-width: 230px;
+          width: 100%;
+        }
+
+        .move-button {
+          border-radius: 0;
+          min-height: 54px;
+          position: relative;
+        }
+
+        .move-button.up {
+          border-radius: 999px 999px 14px 14px;
+          grid-area: up;
+        }
+
+        .move-button.right {
+          border-radius: 14px 999px 999px 14px;
+          grid-area: right;
+        }
+
+        .move-button.down {
+          border-radius: 14px 14px 999px 999px;
+          grid-area: down;
+        }
+
+        .move-button.left {
+          border-radius: 999px 14px 14px 999px;
+          grid-area: left;
+        }
+
+        .home-xy {
+          border-radius: 50%;
+          grid-area: home;
+          min-height: 54px;
+        }
+
+        .direction {
+          color: var(--secondary-text-color);
+          font-weight: 500;
+        }
+
+        .z-stack {
+          display: grid;
+          max-width: 84px;
+          overflow: hidden;
+          width: 100%;
+        }
+
+        .z-button {
+          border-radius: 0;
+          min-height: 64px;
+        }
+
+        .z-button:first-child {
+          border-radius: 12px 12px 0 0;
+        }
+
+        .z-button:last-child {
+          border-radius: 0 0 12px 12px;
+        }
+
+        .warning {
+          background: var(--secondary-background-color);
+          background: color-mix(in srgb, var(--warning-color, #ff9800) 16%, transparent);
+          border-radius: 8px;
+          color: var(--warning-color, #ff9800);
+          font-size: 0.95rem;
+          line-height: 1.25;
+          margin-top: 22px;
+          padding: 14px 16px;
+        }
+
+        @container (max-width: 520px) {
+          .controls {
+            gap: 16px;
+            grid-template-columns: 1fr;
+          }
+
+          .side-actions {
+            grid-template-columns: repeat(2, 64px);
+          }
+
+          .z-stack {
+            grid-template-columns: repeat(3, 1fr);
+            max-width: 230px;
+          }
+
+          .z-button {
+            min-height: 52px;
+          }
+
+          .z-button:first-child {
+            border-radius: 12px 0 0 12px;
+          }
+
+          .z-button:last-child {
+            border-radius: 0 12px 12px 0;
+          }
+        }
+      </style>
+
+      <ha-card>
+        <h2 class="title">${this._escape(title)}</h2>
+        <div class="distance-tabs">
+          ${distances.map((distance) => `
+            <button
+              type="button"
+              class="distance ${distance === this._distance ? "active" : ""}"
+              data-distance="${distance}"
+            >${this._escape(this._formatDistance(distance))}</button>
+          `).join("")}
+        </div>
+
+        <div class="controls">
+          <div class="side-actions">
+            <button type="button" class="round-button" data-home="xyz" title="Home all axes">
+              <ha-icon icon="mdi:home"></ha-icon>
+            </button>
+            <button type="button" class="round-button" data-motors-off title="Turn off axis motors">
+              <ha-icon icon="mdi:gesture-tap"></ha-icon>
+            </button>
+          </div>
+
+          <div class="xy-pad" aria-label="Move X and Y axes">
+            <button type="button" class="move-button up" data-move="y:${this._distance}">
+              <span class="direction">Y+</span>
+            </button>
+            <button type="button" class="move-button left" data-move="x:${-this._distance}">
+              <span class="direction">X-</span>
+            </button>
+            <button type="button" class="move-button home-xy" data-home="xy" title="Home X/Y">
+              <ha-icon class="home-icon" icon="mdi:home"></ha-icon>
+            </button>
+            <button type="button" class="move-button right" data-move="x:${this._distance}">
+              <span class="direction">X+</span>
+            </button>
+            <button type="button" class="move-button down" data-move="y:${-this._distance}">
+              <span class="direction">Y-</span>
+            </button>
+          </div>
+
+          <div class="z-stack" aria-label="Move Z axis">
+            <button type="button" class="z-button" data-move="z:${this._distance}">
+              <span class="direction">Z+</span>
+            </button>
+            <button type="button" class="z-button" data-home="z" title="Home Z">
+              <ha-icon class="home-icon" icon="mdi:home"></ha-icon>
+            </button>
+            <button type="button" class="z-button" data-move="z:${-this._distance}">
+              <span class="direction">Z-</span>
+            </button>
+          </div>
+        </div>
+
+        <div class="warning">
+          Operate near the printer and keep the nozzle clear of the bed and frame before moving axes.
+        </div>
+      </ha-card>
+    `;
+
+    this.shadowRoot.querySelectorAll("[data-distance]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this._distance = Number(button.dataset.distance);
+        this._render();
+      });
+    });
+    this.shadowRoot.querySelectorAll("[data-move]").forEach((button) => {
+      button.addEventListener("click", () => this._move(button.dataset.move));
+    });
+    this.shadowRoot.querySelectorAll("[data-home]").forEach((button) => {
+      button.addEventListener("click", () => this._home(button.dataset.home));
+    });
+    const motorsOff = this.shadowRoot.querySelector("[data-motors-off]");
+    if (motorsOff) {
+      motorsOff.addEventListener("click", () => this._motorsOff());
+    }
+  }
+
+  _distances() {
+    const configured = Array.isArray(this._config.distances)
+      ? this._config.distances
+      : [1, 15, 50];
+    const distances = configured
+      .map((value) => Number(value))
+      .filter((value) => Number.isFinite(value) && value > 0);
+    return distances.length ? distances : [1, 15, 50];
+  }
+
+  _serviceData(extra = {}) {
+    return {
+      ...(this._config.config_entry_id
+        ? { config_entry_id: this._config.config_entry_id }
+        : {}),
+      ...extra,
+    };
+  }
+
+  _move(move) {
+    if (!move) {
+      return;
+    }
+    const [axis, rawDistance] = move.split(":");
+    const distance = Number(rawDistance);
+    if (!["x", "y", "z"].includes(axis) || !Number.isFinite(distance)) {
+      return;
+    }
+    this._hass.callService(
+      "anycubic_kobrax",
+      "move_axis",
+      this._serviceData({ [axis]: distance }),
+    );
+  }
+
+  _home(axis) {
+    if (!axis) {
+      return;
+    }
+    this._hass.callService(
+      "anycubic_kobrax",
+      "home_axis",
+      this._serviceData({ axis }),
+    );
+  }
+
+  _motorsOff() {
+    this._hass.callService(
+      "anycubic_kobrax",
+      "motors_off",
+      this._serviceData(),
+    );
+  }
+
+  _formatDistance(distance) {
+    return `${Number.isInteger(distance) ? distance : distance.toFixed(1)}mm`;
+  }
+
+  _escape(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[char]);
+  }
+}
+
+if (!customElements.get("anycubic-kobrax-axis-card")) {
+  customElements.define("anycubic-kobrax-axis-card", AnycubicKobraXAxisCard);
+}
+
+if (!window.customCards.some((card) => card.type === "anycubic-kobrax-axis-card")) {
+  window.customCards.push({
+    type: "anycubic-kobrax-axis-card",
+    name: "Anycubic Kobra X Axis Move",
+    description: "Move and home printer axes with Home Assistant services.",
+  });
+}
