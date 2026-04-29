@@ -169,11 +169,37 @@ class AnycubicKobraXCard extends HTMLElement {
           background: none;
           border: 0;
           cursor: pointer;
+          position: relative;
+          transition:
+            background-color 120ms ease,
+            color 120ms ease,
+            transform 120ms ease;
         }
 
         button.icon[disabled] {
           cursor: default;
           opacity: 0.45;
+        }
+
+        button.icon:not([disabled]):hover {
+          background: var(--state-hover-color, rgba(128, 128, 128, 0.16));
+          border-radius: 50%;
+        }
+
+        button.icon:not([disabled]):focus-visible {
+          border-radius: 50%;
+          outline: 2px solid var(--accent-color);
+          outline-offset: 3px;
+        }
+
+        button.icon:not([disabled]):active {
+          transform: scale(0.94);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          button.icon {
+            transition: none;
+          }
         }
 
         .icon.active {
@@ -754,6 +780,10 @@ class AnycubicKobraXAxisCard extends HTMLElement {
           font-size: 1rem;
           font-weight: 500;
           min-height: 42px;
+          transition:
+            background-color 120ms ease,
+            color 120ms ease,
+            transform 120ms ease;
         }
 
         .distance.active {
@@ -788,7 +818,49 @@ class AnycubicKobraXAxisCard extends HTMLElement {
           font: inherit;
           justify-content: center;
           min-width: 0;
+          transition:
+            background-color 120ms ease,
+            border-color 120ms ease,
+            box-shadow 120ms ease,
+            transform 120ms ease;
           user-select: none;
+        }
+
+        .distance:not(.active):hover,
+        .round-button:hover,
+        .move-button:hover,
+        .z-button:hover {
+          background: var(--state-hover-color, rgba(128, 128, 128, 0.16));
+          border-color: var(--accent-color);
+        }
+
+        .distance:focus-visible,
+        .round-button:focus-visible,
+        .move-button:focus-visible,
+        .z-button:focus-visible {
+          outline: 2px solid var(--accent-color);
+          outline-offset: 3px;
+          z-index: 1;
+        }
+
+        .distance:active,
+        .round-button:active,
+        .move-button:active,
+        .z-button:active {
+          transform: scale(0.96);
+        }
+
+        .distance.active:hover {
+          filter: brightness(1.05);
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .distance,
+          .round-button,
+          .move-button,
+          .z-button {
+            transition: none;
+          }
         }
 
         .round-button {
