@@ -8,7 +8,9 @@ from homeassistant.components.button import ButtonEntity, ButtonEntityDescriptio
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
 from homeassistant.helpers.entity_platform import AddEntitiesCallback
+from homeassistant.helpers import entity_registry as er
 
+from .const import DOMAIN
 from .coordinator import AnycubicKobraXCoordinator
 from .entity import AnycubicKobraXEntity
 
@@ -58,15 +60,62 @@ BUTTONS = (
     ),
 )
 
+OBSOLETE_AXIS_BUTTON_KEYS = frozenset(
+    {
+        "home_xy",
+        "home_z",
+        "home_xyz",
+        "move_x_minus_1",
+        "move_x_plus_1",
+        "move_x_minus_15",
+        "move_x_plus_15",
+        "move_x_minus_50",
+        "move_x_plus_50",
+        "move_y_minus_1",
+        "move_y_plus_1",
+        "move_y_minus_15",
+        "move_y_plus_15",
+        "move_y_minus_50",
+        "move_y_plus_50",
+        "move_z_minus_1",
+        "move_z_plus_1",
+        "move_z_minus_15",
+        "move_z_plus_15",
+        "move_z_minus_50",
+        "move_z_plus_50",
+    }
+)
+
 
 async def async_setup_entry(
     hass: HomeAssistant, entry: ConfigEntry, async_add_entities: AddEntitiesCallback
 ) -> None:
     """Set up Anycubic Kobra X buttons."""
     coordinator: AnycubicKobraXCoordinator = entry.runtime_data
+    _async_remove_obsolete_axis_buttons(hass, entry, coordinator)
     async_add_entities(
         [AnycubicKobraXButton(coordinator, description) for description in BUTTONS]
     )
+
+
+def _async_remove_obsolete_axis_buttons(
+    hass: HomeAssistant, entry: ConfigEntry, coordinator: AnycubicKobraXCoordinator
+) -> None:
+    """Remove registry entries for axis buttons replaced by services."""
+    entity_registry = er.async_get(hass)
+    obsolete_unique_ids = {
+        f"{coordinator.device.printer_id}_{key}" for key in OBSOLETE_AXIS_BUTTON_KEYS
+    }
+
+    for entity_entry in er.async_entries_for_config_entry(
+        entity_registry, entry.entry_id
+    ):
+        if (
+            entity_entry.entity_id.startswith("button.")
+            and entity_entry.platform == DOMAIN
+            and entity_entry.unique_id in obsolete_unique_ids
+        ):
+            entity_registry.async_remove(entity_entry.entity_id)
 
 
 class AnycubicKobraXButton(AnycubicKobraXEntity, ButtonEntity):
