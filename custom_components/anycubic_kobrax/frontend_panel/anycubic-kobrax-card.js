@@ -886,16 +886,16 @@ class AnycubicKobraXAxisCard extends HTMLElement {
         @container (max-width: 520px) {
           .controls {
             gap: 16px;
-            grid-template-columns: 1fr;
+            grid-template-columns: minmax(0, 1fr) minmax(72px, 0.32fr);
           }
 
           .side-actions {
+            grid-column: 1 / -1;
             grid-template-columns: repeat(2, 64px);
           }
 
           .z-stack {
-            grid-template-columns: repeat(3, 1fr);
-            max-width: 230px;
+            max-width: 84px;
           }
 
           .z-button {
@@ -903,11 +903,11 @@ class AnycubicKobraXAxisCard extends HTMLElement {
           }
 
           .z-button:first-child {
-            border-radius: 12px 0 0 12px;
+            border-radius: 12px 12px 0 0;
           }
 
           .z-button:last-child {
-            border-radius: 0 12px 12px 0;
+            border-radius: 0 0 12px 12px;
           }
         }
       </style>
@@ -936,31 +936,31 @@ class AnycubicKobraXAxisCard extends HTMLElement {
 
           <div class="xy-pad" aria-label="Move X and Y axes">
             <button type="button" class="move-button up" data-move="y:${this._distance}">
-              <span class="direction">Y+</span>
+              <span class="direction">▲ Y+</span>
             </button>
             <button type="button" class="move-button left" data-move="x:${-this._distance}">
-              <span class="direction">X-</span>
+              <span class="direction">◄ X-</span>
             </button>
             <button type="button" class="move-button home-xy" data-home="xy" title="Home X/Y">
               <ha-icon class="home-icon" icon="mdi:home"></ha-icon>
             </button>
             <button type="button" class="move-button right" data-move="x:${this._distance}">
-              <span class="direction">X+</span>
+              <span class="direction">X+ ►</span>
             </button>
             <button type="button" class="move-button down" data-move="y:${-this._distance}">
-              <span class="direction">Y-</span>
+              <span class="direction">Y- ▼</span>
             </button>
           </div>
 
           <div class="z-stack" aria-label="Move Z axis">
             <button type="button" class="z-button" data-move="z:${this._distance}">
-              <span class="direction">Z+</span>
+              <span class="direction">▲<br>Z+</span>
             </button>
             <button type="button" class="z-button" data-home="z" title="Home Z">
               <ha-icon class="home-icon" icon="mdi:home"></ha-icon>
             </button>
             <button type="button" class="z-button" data-move="z:${-this._distance}">
-              <span class="direction">Z-</span>
+              <span class="direction">Z-<br>▼</span>
             </button>
           </div>
         </div>
