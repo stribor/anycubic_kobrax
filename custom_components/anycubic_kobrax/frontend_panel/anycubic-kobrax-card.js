@@ -98,13 +98,20 @@ class AnycubicKobraXCard extends HTMLElement {
         :host {
           container-type: inline-size;
           display: block;
+          font-family: var(--ha-font-family-body, inherit);
           min-width: 0;
         }
 
         ha-card {
-          background: var(--ha-card-background, #30333d);
+          background: var(
+            --ha-card-background,
+            var(--card-background-color, #fff)
+          );
+          border: var(--ha-card-border-width, 1px) solid
+            var(--ha-card-border-color, var(--divider-color, transparent));
           border-radius: var(--ha-card-border-radius, 8px);
-          color: var(--primary-text-color, #f3f4f8);
+          box-shadow: var(--ha-card-box-shadow, none);
+          color: var(--primary-text-color);
           display: block;
           overflow: hidden;
           padding: 16px;
@@ -122,8 +129,9 @@ class AnycubicKobraXCard extends HTMLElement {
         .title {
           align-items: center;
           display: flex;
-          font-size: 22px;
-          font-weight: 760;
+          font-family: var(--ha-font-family-heading, inherit);
+          font-size: 1.25rem;
+          font-weight: 500;
           justify-content: center;
           line-height: 1.1;
           min-width: 0;
@@ -137,7 +145,7 @@ class AnycubicKobraXCard extends HTMLElement {
         }
 
         .dot {
-          background: #20c6dd;
+          background: var(--accent-color);
           border-radius: 50%;
           display: inline-block;
           flex: 0 0 auto;
@@ -148,7 +156,7 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .icon {
           align-items: center;
-          color: #f2f3f7;
+          color: var(--state-icon-color, var(--secondary-text-color));
           display: inline-flex;
           height: 32px;
           justify-content: center;
@@ -169,7 +177,7 @@ class AnycubicKobraXCard extends HTMLElement {
         }
 
         .icon.active {
-          color: #ffd86b;
+          color: var(--state-light-active-color, var(--accent-color));
         }
 
         .icon svg {
@@ -201,8 +209,8 @@ class AnycubicKobraXCard extends HTMLElement {
         }
 
         .progress {
-          font-size: 42px;
-          font-weight: 800;
+          font-size: 2.6rem;
+          font-weight: 500;
           line-height: 1;
           margin-bottom: 14px;
           text-align: center;
@@ -210,20 +218,20 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .stats {
           display: grid;
-          font-size: 17px;
+          font-size: 1rem;
           gap: 6px 16px;
           grid-template-columns: auto 1fr;
           line-height: 1.1;
         }
 
         .label {
-          color: #f0f1f6;
-          font-weight: 760;
+          color: var(--primary-text-color);
+          font-weight: 500;
         }
 
         .value {
-          color: #f2f3f7;
-          font-weight: 500;
+          color: var(--secondary-text-color, var(--primary-text-color));
+          font-weight: 400;
           overflow-wrap: anywhere;
           text-align: right;
         }
@@ -245,7 +253,7 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .spool {
           align-items: center;
-          background: var(--slot-color, #bfc0c2);
+          background: var(--slot-color, var(--disabled-color));
           border-radius: 50%;
           display: flex;
           height: 54px;
@@ -258,7 +266,10 @@ class AnycubicKobraXCard extends HTMLElement {
         }
 
         .spool::after {
-          background: #f6f7fa;
+          background: var(
+            --ha-card-background,
+            var(--card-background-color, #fff)
+          );
           border-radius: 50%;
           content: "";
           height: 53%;
@@ -267,8 +278,8 @@ class AnycubicKobraXCard extends HTMLElement {
         }
 
         .slot-number {
-          color: #333741;
-          font-size: 16px;
+          color: var(--primary-text-color);
+          font-size: 1rem;
           font-size: clamp(14px, 4cqw, 17px);
           font-weight: 800;
           position: relative;
@@ -276,10 +287,10 @@ class AnycubicKobraXCard extends HTMLElement {
         }
 
         .filament {
-          color: #f1f2f6;
-          font-size: 15px;
+          color: var(--secondary-text-color, var(--primary-text-color));
+          font-size: 0.95rem;
           font-size: clamp(13px, 3.8cqw, 16px);
-          font-weight: 760;
+          font-weight: 500;
           line-height: 1.1;
           max-width: 100%;
           overflow: hidden;
@@ -290,7 +301,7 @@ class AnycubicKobraXCard extends HTMLElement {
         }
 
         .empty .spool {
-          --slot-color: #bfc0c2;
+          --slot-color: var(--disabled-color);
         }
 
         @container (min-width: 620px) {
@@ -305,7 +316,7 @@ class AnycubicKobraXCard extends HTMLElement {
           }
 
           .title {
-            font-size: 28px;
+            font-size: 1.55rem;
           }
 
           .main {
@@ -322,12 +333,12 @@ class AnycubicKobraXCard extends HTMLElement {
           }
 
           .progress {
-            font-size: 54px;
+            font-size: 3.2rem;
             margin-bottom: 24px;
           }
 
           .stats {
-            font-size: 21px;
+            font-size: 1.1rem;
             gap: 8px 22px;
           }
 
@@ -349,11 +360,11 @@ class AnycubicKobraXCard extends HTMLElement {
           }
 
           .slot-number {
-            font-size: 18px;
+            font-size: 1rem;
           }
 
           .filament {
-            font-size: 18px;
+            font-size: 1rem;
           }
         }
       </style>
@@ -478,7 +489,7 @@ class AnycubicKobraXCard extends HTMLElement {
     if (value?.startsWith("#") || value?.startsWith("rgb")) {
       return value;
     }
-    return "#bfc0c2";
+    return "var(--disabled-color)";
   }
 
   _string(state) {
