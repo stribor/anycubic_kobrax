@@ -83,6 +83,7 @@ class AnycubicKobraXCard extends HTMLElement {
     const status = this._formatStatus(this._string(get("print_state")) || this._state(get("last_will")));
     const elapsed = this._formatDuration(this._seconds(get("total_time")), false);
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
+    const previewUrl = this._previewImageUrl(get("preview_image"));
     const lightState = get("light");
     const lightIsOn = lightState?.state === "on";
     const lightTitle = lightState
@@ -221,17 +222,32 @@ class AnycubicKobraXCard extends HTMLElement {
         .printer {
           align-items: center;
           display: flex;
+          gap: 14px;
           justify-content: center;
           min-height: 150px;
         }
 
-        .printer img {
+        .printer-image {
           display: block;
           filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.24));
+          height: auto;
+          max-height: 90px;
+          max-width: ${previewUrl ? "35%" : "50%"};
+          object-fit: contain;
+        }
+
+        .preview-image {
+          background: var(--secondary-background-color);
+          border: var(--ha-card-border-width, 1px) solid
+            var(--ha-card-border-color, var(--divider-color, transparent));
+          border-radius: 8px;
+          display: block;
           height: auto;
           max-height: 180px;
           max-width: 100%;
           object-fit: contain;
+          overflow: hidden;
+          width: min(62%, 220px);
         }
 
         .progress {
@@ -354,8 +370,14 @@ class AnycubicKobraXCard extends HTMLElement {
             min-height: 240px;
           }
 
-          .printer img {
+          .printer-image {
+            max-height: 132px;
+            max-width: ${previewUrl ? "36%" : "50%"};
+          }
+
+          .preview-image {
             max-height: 265px;
+            width: min(62%, 300px);
           }
 
           .progress {
@@ -412,7 +434,14 @@ class AnycubicKobraXCard extends HTMLElement {
 
         <div class="main">
           <div class="printer">
-            <img src="${this._escapeAttribute(imageUrl)}" alt="" />
+            <img class="printer-image" src="${this._escapeAttribute(imageUrl)}" alt="" />
+            ${previewUrl ? `
+              <img
+                class="preview-image"
+                src="${this._escapeAttribute(previewUrl)}"
+                alt="Current print preview"
+              />
+            ` : ""}
           </div>
           <div class="summary">
             <div class="progress">${this._escape(this._formatPercent(progress))}</div>
@@ -460,6 +489,7 @@ class AnycubicKobraXCard extends HTMLElement {
       "nozzle_temperature",
       "bed_temperature",
       "fan_speed",
+      "preview_image",
     ];
     for (let slot = 1; slot <= 4; slot += 1) {
       keys.push(`slot_${slot}_type`, `slot_${slot}_color`);
@@ -518,6 +548,13 @@ class AnycubicKobraXCard extends HTMLElement {
       return value;
     }
     return "var(--disabled-color)";
+  }
+
+  _previewImageUrl(state) {
+    if (!state || state.state === "unavailable" || state.state === "unknown") {
+      return "";
+    }
+    return state.attributes?.entity_picture || "";
   }
 
   _string(state) {
