@@ -4,6 +4,8 @@ from __future__ import annotations
 
 DOMAIN = "anycubic_kobrax"
 
+DATA_SERVICE_REGISTERED = "services_registered"
+
 FRONTEND_FOLDER = "frontend_panel"
 CARD_FILENAME = "anycubic-kobrax-card.js"
 CARD_VERSION = "0.1.5"
@@ -14,6 +16,15 @@ CONF_PRINTER_ID = "printer_id"
 CONF_MQTT_USERNAME = "mqtt_username"
 CONF_MQTT_PASSWORD = "mqtt_password"
 CONF_STREAM_PATH = "stream_path"
+CONF_CONFIG_ENTRY_ID = "config_entry_id"
+CONF_AXIS = "axis"
+CONF_X = "x"
+CONF_Y = "y"
+CONF_Z = "z"
+
+SERVICE_MOVE_AXIS = "move_axis"
+SERVICE_HOME_AXIS = "home_axis"
+SERVICE_MOTORS_OFF = "motors_off"
 
 DEFAULT_MQTT_PORT = 9883
 DEFAULT_HTTP_PORT = 18088

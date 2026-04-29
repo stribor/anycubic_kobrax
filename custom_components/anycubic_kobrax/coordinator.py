@@ -100,6 +100,7 @@ from .const import (
 _LOGGER = logging.getLogger(__name__)
 _LIVE_URL_RE = re.compile(r"https?://[^\s\"']+/live/[A-Za-z0-9_-]+")
 _LIVE_PATH_RE = re.compile(r"/live/[A-Za-z0-9_-]+")
+_HOME_AXIS_MAP = {"xy": 4, "z": 3, "xyz": 5}
 
 
 @dataclass(slots=True)
@@ -296,12 +297,27 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._payload("axis", action, data),
         )
 
-    def move_axis(self, axis: int, move_type: int, distance: int) -> None:
+    def move_axis(self, axis: int, move_type: int, distance: int | float) -> None:
         """Move or home one of the printer axis groups."""
         self.axis_command(
             "move",
             {"axis": axis, "move_type": move_type, "distance": distance},
         )
+
+    def move_relative(self, x: float, y: float, z: float) -> None:
+        """Move one or more axes relatively in millimeters."""
+        for axis, distance in ((1, x), (2, y), (3, z)):
+            if distance == 0:
+                continue
+            self.move_axis(
+                axis,
+                1 if distance > 0 else 0,
+                _distance_payload(distance),
+            )
+
+    def home_axis_group(self, axis_group: str) -> None:
+        """Home one of the supported axis groups."""
+        self.move_axis(_HOME_AXIS_MAP[axis_group], 2, 0)
 
     def turn_off_axis_motors(self) -> None:
         """Turn off axis motors."""
@@ -1074,3 +1090,11 @@ def _coerce_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _distance_payload(value: float) -> int | float:
+    """Return a compact numeric distance for the Anycubic payload."""
+    distance = abs(value)
+    if distance.is_integer():
+        return int(distance)
+    return distance

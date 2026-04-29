@@ -239,69 +239,6 @@
       }
     },
     "button": {
-      "home_xy": {
-        "name": "Home XY"
-      },
-      "home_z": {
-        "name": "Home Z"
-      },
-      "home_xyz": {
-        "name": "Home XYZ"
-      },
-      "move_x_minus_1": {
-        "name": "X- 1 mm"
-      },
-      "move_x_plus_1": {
-        "name": "X+ 1 mm"
-      },
-      "move_x_minus_15": {
-        "name": "X- 15 mm"
-      },
-      "move_x_plus_15": {
-        "name": "X+ 15 mm"
-      },
-      "move_x_minus_50": {
-        "name": "X- 50 mm"
-      },
-      "move_x_plus_50": {
-        "name": "X+ 50 mm"
-      },
-      "move_y_minus_1": {
-        "name": "Y- 1 mm"
-      },
-      "move_y_plus_1": {
-        "name": "Y+ 1 mm"
-      },
-      "move_y_minus_15": {
-        "name": "Y- 15 mm"
-      },
-      "move_y_plus_15": {
-        "name": "Y+ 15 mm"
-      },
-      "move_y_minus_50": {
-        "name": "Y- 50 mm"
-      },
-      "move_y_plus_50": {
-        "name": "Y+ 50 mm"
-      },
-      "move_z_minus_1": {
-        "name": "Z- 1 mm"
-      },
-      "move_z_plus_1": {
-        "name": "Z+ 1 mm"
-      },
-      "move_z_minus_15": {
-        "name": "Z- 15 mm"
-      },
-      "move_z_plus_15": {
-        "name": "Z+ 15 mm"
-      },
-      "move_z_minus_50": {
-        "name": "Z- 50 mm"
-      },
-      "move_z_plus_50": {
-        "name": "Z+ 50 mm"
-      },
       "motors_off": {
         "name": "Motors off"
       },

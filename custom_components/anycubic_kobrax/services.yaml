@@ -1,0 +1,72 @@
+move_axis:
+  name: Move axis
+  description: Move one or more axes relative to the current position.
+  fields:
+    config_entry_id:
+      name: Config entry ID
+      description: Optional config entry ID. Required only when multiple printers are loaded.
+      required: false
+      selector:
+        text: {}
+    x:
+      name: X distance
+      description: Relative X movement in millimeters. Negative moves X-.
+      required: false
+      default: 0
+      example: -1
+      selector:
+        number:
+          mode: box
+          unit_of_measurement: mm
+    y:
+      name: Y distance
+      description: Relative Y movement in millimeters. Negative moves Y-.
+      required: false
+      default: 0
+      example: 0
+      selector:
+        number:
+          mode: box
+          unit_of_measurement: mm
+    z:
+      name: Z distance
+      description: Relative Z movement in millimeters. Negative moves Z-.
+      required: false
+      default: 0
+      example: 0
+      selector:
+        number:
+          mode: box
+          unit_of_measurement: mm
+
+home_axis:
+  name: Home axis
+  description: Home one of the supported axis groups.
+  fields:
+    config_entry_id:
+      name: Config entry ID
+      description: Optional config entry ID. Required only when multiple printers are loaded.
+      required: false
+      selector:
+        text: {}
+    axis:
+      name: Axis group
+      description: Axis group to home.
+      required: true
+      selector:
+        select:
+          options:
+            - xy
+            - z
+            - xyz
+
+motors_off:
+  name: Motors off
+  description: Turn off the printer axis motors.
+  fields:
+    config_entry_id:
+      name: Config entry ID
+      description: Optional config entry ID. Required only when multiple printers are loaded.
+      required: false
+      selector:
+        text: {}
