@@ -34,7 +34,7 @@ class AnycubicKobraXPreviewImage(AnycubicKobraXEntity, ImageEntity):
     @property
     def available(self) -> bool:
         """Return whether a preview image is available."""
-        return self.coordinator.preview_image is not None
+        return super().available and self.coordinator.preview_image is not None
 
     @property
     def content_type(self) -> str:

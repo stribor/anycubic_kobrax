@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.core import HomeAssistant
 
 from .const import DOMAIN, PLATFORMS
@@ -17,10 +16,7 @@ async def async_setup_entry(
 ) -> bool:
     """Set up Anycubic Kobra X from a config entry."""
     coordinator = AnycubicKobraXCoordinator(hass, entry)
-    try:
-        await coordinator.async_setup()
-    except (ConnectionError, OSError, TimeoutError) as err:
-        raise ConfigEntryNotReady(f"Could not connect to Anycubic printer: {err}") from err
+    await coordinator.async_setup()
     entry.runtime_data = coordinator
     hass.data.setdefault(DOMAIN, {})[entry.entry_id] = coordinator
 

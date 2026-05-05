@@ -21,6 +21,7 @@ import paho.mqtt.client as mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
+from homeassistant.exceptions import ConfigEntryNotReady
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -179,10 +180,27 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "configuration_url": f"http://{self.device.host}:{DEFAULT_HTTP_PORT}",
         }
 
+    @property
+    def connected(self) -> bool:
+        """Return whether the MQTT client is connected to the printer."""
+        return self._connected
+
     async def async_setup(self) -> None:
-        """Connect to MQTT and perform an initial refresh."""
-        await self.hass.async_add_executor_job(self._connect)
-        await self.async_config_entry_first_refresh()
+        """Connect to MQTT and perform an initial refresh if the printer is online."""
+        try:
+            await self.hass.async_add_executor_job(self._connect)
+            await self.async_config_entry_first_refresh()
+        except (
+            ConnectionError,
+            ConfigEntryNotReady,
+            OSError,
+            TimeoutError,
+            UpdateFailed,
+        ) as err:
+            _LOGGER.info(
+                "Anycubic printer is unavailable during setup; will retry: %s", err
+            )
+            self.async_set_updated_data(dict(self._state))
 
     async def async_shutdown(self) -> None:
         """Disconnect the MQTT client."""
@@ -194,7 +212,12 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     async def _async_update_data(self) -> dict[str, Any]:
         """Poll the printer over MQTT."""
         if not self._connected:
-            raise UpdateFailed("MQTT client is not connected")
+            try:
+                await self.hass.async_add_executor_job(self._connect)
+            except (ConnectionError, OSError, TimeoutError) as err:
+                raise UpdateFailed(
+                    f"Could not connect to Anycubic printer: {err}"
+                ) from err
         for source, query_type, action in QUERY_SPECS:
             self.publish_query(source, query_type, action)
         return dict(self._state)
@@ -338,6 +361,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _connect(self) -> None:
         """Create and start a paho MQTT client."""
+        if self._client is not None:
+            self._disconnect()
+        self._connected = False
         client = mqtt.Client(
             callback_api_version=mqtt.CallbackAPIVersion.VERSION2,
             client_id=f"ha-anycubic-kobrax-{uuid4()}",

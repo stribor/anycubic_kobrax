@@ -24,3 +24,8 @@ class AnycubicKobraXEntity(CoordinatorEntity[AnycubicKobraXCoordinator]):
             f"{coordinator.device.printer_id}_{translation_key}"
         )
         self._attr_device_info = DeviceInfo(**coordinator.device_info)
+
+    @property
+    def available(self) -> bool:
+        """Return whether the printer is connected and the entity has fresh data."""
+        return self.coordinator.connected and super().available
