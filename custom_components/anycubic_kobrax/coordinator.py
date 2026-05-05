@@ -21,7 +21,7 @@ import paho.mqtt.client as mqtt
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import CONF_HOST
 from homeassistant.core import HomeAssistant, callback
-from homeassistant.exceptions import ConfigEntryNotReady
+from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
 
 from .const import (
@@ -185,6 +185,11 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Return whether the MQTT client is connected to the printer."""
         return self._connected
 
+    def ensure_connected(self) -> None:
+        """Raise if the printer cannot currently accept commands."""
+        if not self._connected:
+            raise HomeAssistantError("Anycubic printer is offline")
+
     async def async_setup(self) -> None:
         """Connect to MQTT and perform an initial refresh if the printer is online."""
         try:
@@ -229,6 +234,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def control_light(self, brightness: int) -> None:
         """Set the printer light brightness as 0-100."""
+        self.ensure_connected()
         brightness = max(0, min(100, brightness))
         payload = self._payload(
             "light",
@@ -245,6 +251,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self, command_type: int, bed_temperature: int, nozzle_temperature: int
     ) -> None:
         """Set printer target temperatures."""
+        self.ensure_connected()
         bed_temperature = max(0, min(120, bed_temperature))
         nozzle_temperature = max(0, min(300, nozzle_temperature))
         self._publish(
@@ -276,6 +283,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def set_fan_speed(self, speed: int) -> None:
         """Set model fan speed percentage."""
+        self.ensure_connected()
         speed = max(0, min(100, speed))
         self._publish(
             f"{self.base_web_topic}/fan",
@@ -301,6 +309,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def start_video(self) -> None:
         """Ask the printer to start camera capture."""
+        self.ensure_connected()
         self._publish(
             f"{self.base_web_topic}/video",
             self._payload("video", "startCapture"),
@@ -308,6 +317,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def stop_video(self) -> None:
         """Ask the printer to stop camera capture."""
+        self.ensure_connected()
         self._publish(
             f"{self.base_web_topic}/video",
             self._payload("video", "stopCapture"),
@@ -315,6 +325,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def axis_command(self, action: str, data: Mapping[str, Any] | None = None) -> None:
         """Send an axis command to the printer."""
+        self.ensure_connected()
         self._publish(
             f"{self.base_web_topic}/axis",
             self._payload("axis", action, data),

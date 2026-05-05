@@ -85,8 +85,11 @@ class AnycubicKobraXCard extends HTMLElement {
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
     const previewUrl = this._previewImageUrl(get("preview_image"));
     const lightState = get("light");
+    const lightUnavailable = !lightState || this._isUnavailable(lightState);
     const lightIsOn = lightState?.state === "on";
-    const lightTitle = lightState
+    const lightTitle = lightUnavailable
+      ? "Printer light unavailable"
+      : lightState
       ? `Turn ${lightIsOn ? "off" : "on"} printer light`
       : "Printer light entity not found";
 
@@ -427,7 +430,7 @@ class AnycubicKobraXCard extends HTMLElement {
             type="button"
             class="icon light-toggle ${lightIsOn ? "active" : ""}"
             title="${this._escapeAttribute(lightTitle)}"
-            ${lightState ? "" : "disabled"}
+            ${lightUnavailable ? "disabled" : ""}
             aria-label="${this._escapeAttribute(lightTitle)}"
           >${this._lightIcon()}</button>
         </header>
@@ -462,7 +465,7 @@ class AnycubicKobraXCard extends HTMLElement {
     `;
 
     const lightButton = this.shadowRoot.querySelector(".light-toggle");
-    if (lightButton && lightState) {
+    if (lightButton && !lightUnavailable) {
       lightButton.addEventListener("click", () => this._toggleLight(lightState));
     }
   }
@@ -510,7 +513,7 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _toggleLight(lightState) {
-    if (!lightState) {
+    if (!lightState || this._isUnavailable(lightState)) {
       return;
     }
     this._hass.callService(
@@ -551,17 +554,21 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _previewImageUrl(state) {
-    if (!state || state.state === "unavailable" || state.state === "unknown") {
+    if (!state || this._isUnavailable(state)) {
       return "";
     }
     return state.attributes?.entity_picture || "";
   }
 
   _string(state) {
-    if (!state || state.state === "unknown" || state.state === "unavailable" || state.state === "") {
+    if (!state || this._isUnavailable(state) || state.state === "") {
       return "";
     }
     return String(state.state);
+  }
+
+  _isUnavailable(state) {
+    return state.state === "unknown" || state.state === "unavailable";
   }
 
   _state(state) {
@@ -758,6 +765,8 @@ class AnycubicKobraXAxisCard extends HTMLElement {
       this._distance = distances[0];
     }
     const title = this._config.name || "Axis Move";
+    const controlsAvailable = this._controlsAvailable();
+    const disabled = controlsAvailable ? "" : "disabled";
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -864,9 +873,9 @@ class AnycubicKobraXAxisCard extends HTMLElement {
         }
 
         .distance:not(.active):hover,
-        .round-button:hover,
-        .move-button:hover,
-        .z-button:hover {
+        .round-button:not([disabled]):hover,
+        .move-button:not([disabled]):hover,
+        .z-button:not([disabled]):hover {
           background: var(--state-hover-color, rgba(128, 128, 128, 0.16));
           border-color: var(--accent-color);
         }
@@ -881,10 +890,17 @@ class AnycubicKobraXAxisCard extends HTMLElement {
         }
 
         .distance:active,
-        .round-button:active,
-        .move-button:active,
-        .z-button:active {
+        .round-button:not([disabled]):active,
+        .move-button:not([disabled]):active,
+        .z-button:not([disabled]):active {
           transform: scale(0.96);
+        }
+
+        .round-button[disabled],
+        .move-button[disabled],
+        .z-button[disabled] {
+          cursor: default;
+          opacity: 0.45;
         }
 
         .distance.active:hover {
@@ -1034,40 +1050,40 @@ class AnycubicKobraXAxisCard extends HTMLElement {
 
         <div class="controls">
           <div class="side-actions">
-            <button type="button" class="round-button" data-home="xyz" title="Home all axes">
+            <button type="button" class="round-button" data-home="xyz" title="Home all axes" ${disabled}>
               <ha-icon icon="mdi:home"></ha-icon>
             </button>
-            <button type="button" class="round-button" data-motors-off title="Turn off axis motors">
+            <button type="button" class="round-button" data-motors-off title="Turn off axis motors" ${disabled}>
               <ha-icon icon="mdi:gesture-tap"></ha-icon>
             </button>
           </div>
 
           <div class="xy-pad" aria-label="Move X and Y axes">
-            <button type="button" class="move-button up" data-move="y:${this._distance}">
+            <button type="button" class="move-button up" data-move="y:${this._distance}" ${disabled}>
               <span class="direction">▲<br>Y+</span>
             </button>
-            <button type="button" class="move-button left" data-move="x:${-this._distance}">
+            <button type="button" class="move-button left" data-move="x:${-this._distance}" ${disabled}>
               <span class="direction">◄ X-</span>
             </button>
-            <button type="button" class="move-button home-xy" data-home="xy" title="Home X/Y">
+            <button type="button" class="move-button home-xy" data-home="xy" title="Home X/Y" ${disabled}>
               <ha-icon class="home-icon" icon="mdi:home"></ha-icon>
             </button>
-            <button type="button" class="move-button right" data-move="x:${this._distance}">
+            <button type="button" class="move-button right" data-move="x:${this._distance}" ${disabled}>
               <span class="direction">X+ ►</span>
             </button>
-            <button type="button" class="move-button down" data-move="y:${-this._distance}">
+            <button type="button" class="move-button down" data-move="y:${-this._distance}" ${disabled}>
               <span class="direction">Y-<br>▼</span>
             </button>
           </div>
 
           <div class="z-stack" aria-label="Move Z axis">
-            <button type="button" class="z-button" data-move="z:${this._distance}">
+            <button type="button" class="z-button" data-move="z:${this._distance}" ${disabled}>
               <span class="direction">▲<br>Z+</span>
             </button>
-            <button type="button" class="z-button" data-home="z" title="Home Z">
+            <button type="button" class="z-button" data-home="z" title="Home Z" ${disabled}>
               <ha-icon class="home-icon" icon="mdi:home"></ha-icon>
             </button>
-            <button type="button" class="z-button" data-move="z:${-this._distance}">
+            <button type="button" class="z-button" data-move="z:${-this._distance}" ${disabled}>
               <span class="direction">Z-<br>▼</span>
             </button>
           </div>
@@ -1117,7 +1133,7 @@ class AnycubicKobraXAxisCard extends HTMLElement {
   }
 
   _move(move) {
-    if (!move) {
+    if (!this._controlsAvailable() || !move) {
       return;
     }
     const [axis, rawDistance] = move.split(":");
@@ -1133,7 +1149,7 @@ class AnycubicKobraXAxisCard extends HTMLElement {
   }
 
   _home(axis) {
-    if (!axis) {
+    if (!this._controlsAvailable() || !axis) {
       return;
     }
     this._hass.callService(
@@ -1144,6 +1160,9 @@ class AnycubicKobraXAxisCard extends HTMLElement {
   }
 
   _motorsOff() {
+    if (!this._controlsAvailable()) {
+      return;
+    }
     this._hass.callService(
       "anycubic_kobrax",
       "motors_off",
@@ -1163,6 +1182,20 @@ class AnycubicKobraXAxisCard extends HTMLElement {
       '"': "&quot;",
       "'": "&#39;",
     })[char]);
+  }
+
+  _controlsAvailable() {
+    const states = Object.values(this._hass?.states || {});
+    const matches = states.filter((state) => {
+      const entityId = state.entity_id || "";
+      const name = state.attributes?.friendly_name || "";
+      return entityId.includes("anycubic_kobra_x") || name.includes("Anycubic Kobra X");
+    });
+    return matches.length > 0 && matches.some((state) => state.state !== "unavailable");
+  }
+
+  _isUnavailable(state) {
+    return state.state === "unknown" || state.state === "unavailable";
   }
 }
 
