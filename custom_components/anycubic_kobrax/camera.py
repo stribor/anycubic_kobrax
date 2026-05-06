@@ -39,6 +39,12 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
             await self.async_turn_on()
         return self.coordinator.stream_url()
 
+    async def async_camera_image(
+        self, width: int | None = None, height: int | None = None
+    ) -> bytes | None:
+        """Return the last decoded preview image for still-image requests."""
+        return self.coordinator.preview_image
+
     @property
     def is_streaming(self) -> bool:
         """Return whether the printer reports video capture as active."""
