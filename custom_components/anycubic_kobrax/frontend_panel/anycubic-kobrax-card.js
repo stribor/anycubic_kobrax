@@ -249,7 +249,7 @@ class AnycubicKobraXCard extends HTMLElement {
     const progressStyle = ["number", "bar", "hidden"].includes(this._config.progress_style)
       ? this._config.progress_style
       : "number";
-    const hideProgress = progressStyle === "hidden" || (this._config.hide_progress_when_idle && isIdle);
+    const hideProgress = progressStyle === "hidden" || (this._config.hide_progress_when_idle !== false && isIdle);
     const visibleStats = this._visibleStats(isPrinting);
     const statsColumns = Number(this._config.stats_columns) === 2 ? 2 : 1;
     const showSlots = layout !== "compact" && this._config.show_slots !== false;

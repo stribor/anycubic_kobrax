@@ -67,7 +67,7 @@ can be made shorter with optional card settings:
 type: custom:anycubic-kobrax-card
 name: Kobra X
 progress_style: bar # number, bar, or hidden
-hide_progress_when_idle: true
+hide_progress_when_idle: true # default; set false to keep 100% visible when idle
 hide_preview_when_idle: true
 stats_columns: 2
 visible_stats:
@@ -91,7 +91,6 @@ name: Kobra X
 layout: compact
 progress_style: bar
 hide_preview_when_idle: true
-hide_progress_when_idle: true
 show_header: false
 ```
 
