@@ -9,8 +9,10 @@ from dataclasses import dataclass
 from datetime import datetime, timedelta, timezone
 import json
 import logging
+import os
 import re
 import ssl
+import tempfile
 from threading import Event
 import time
 from typing import Any
@@ -78,6 +80,9 @@ from .const import (
     ATTR_USB_DISK,
     ATTR_VIDEO_STATE,
     ATTR_WIFI_SIGNAL,
+    CONF_DEVICE_CERT,
+    CONF_DEVICE_KEY,
+    CONF_MODEL_NAME,
     CONF_MQTT_PASSWORD,
     CONF_MQTT_USERNAME,
     CONF_PRINTER_ID,
@@ -113,6 +118,9 @@ class AnycubicDevice:
     printer_id: str
     username: str
     password: str
+    device_cert: str | None
+    device_key: str | None
+    model_name: str | None
     stream_path: str | None
 
 
@@ -132,6 +140,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             password=entry.options.get(
                 CONF_MQTT_PASSWORD, entry.data[CONF_MQTT_PASSWORD]
             ),
+            device_cert=entry.data.get(CONF_DEVICE_CERT),
+            device_key=entry.data.get(CONF_DEVICE_KEY),
+            model_name=entry.data.get(CONF_MODEL_NAME),
             stream_path=entry.options.get(
                 CONF_STREAM_PATH, entry.data.get(CONF_STREAM_PATH)
             ),
@@ -175,8 +186,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         return {
             "identifiers": {(DOMAIN, self.device.printer_id)},
             "manufacturer": "Anycubic",
-            "model": f"Kobra X type {self.device.type_id}",
-            "name": "Anycubic Kobra X",
+            "model": (
+                self.device.model_name or f"Kobra X type {self.device.type_id}"
+            ),
+            "name": self.device.model_name or "Anycubic Kobra X",
             "configuration_url": f"http://{self.device.host}:{DEFAULT_HTTP_PORT}",
         }
 
@@ -385,6 +398,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         context = ssl.create_default_context()
         context.check_hostname = False
         context.verify_mode = ssl.CERT_NONE
+        if self.device.device_cert and self.device.device_key:
+            _load_client_cert_chain(
+                context, self.device.device_cert, self.device.device_key
+            )
         client.tls_set_context(context)
         client.tls_insecure_set(True)
 
@@ -1052,6 +1069,35 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if key == "token" and value:
                 return f"http://{self.device.host}:{DEFAULT_HTTP_PORT}/live/{value}"
         return None
+
+
+def _load_client_cert_chain(context: ssl.SSLContext, cert: str, key: str) -> None:
+    """Load an in-memory client certificate into an SSL context."""
+    cert_path: str | None = None
+    key_path: str | None = None
+    try:
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as file:
+            file.write(_ensure_trailing_newline(cert))
+            cert_path = file.name
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as file:
+            file.write(_ensure_trailing_newline(key))
+            key_path = file.name
+        context.load_cert_chain(cert_path, key_path)
+    finally:
+        for path in (cert_path, key_path):
+            if path is None:
+                continue
+            try:
+                os.unlink(path)
+            except OSError:
+                pass
+
+
+def _ensure_trailing_newline(value: str) -> str:
+    """Return PEM text with the trailing newline OpenSSL expects."""
+    if value.endswith("\n"):
+        return value
+    return f"{value}\n"
 
 
 def _flatten(value: Any) -> dict[str, Any]:

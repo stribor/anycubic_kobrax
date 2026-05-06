@@ -3,16 +3,17 @@
     "step": {
       "user": {
         "title": "Anycubic Kobra X",
-        "description": "Connect to the printer's local MQTT broker. The first version requires the printer type ID and printer ID.",
+        "description": "Enter the printer IP address. The integration will read LAN MQTT credentials from the printer.",
         "data": {
           "host": "Printer host or IP",
-          "type_id": "Type ID",
-          "printer_id": "Printer ID",
-          "mqtt_username": "MQTT username",
-          "mqtt_password": "MQTT password",
           "stream_path": "Camera stream path, optional, for example /live/k5DawnaQ"
         }
       }
+    },
+    "error": {
+      "cannot_connect": "Could not connect to the printer. Make sure it is online, on the same LAN, and LAN mode is enabled.",
+      "invalid_response": "The printer did not return valid LAN MQTT credentials.",
+      "unknown": "Unexpected error"
     }
   },
   "options": {
