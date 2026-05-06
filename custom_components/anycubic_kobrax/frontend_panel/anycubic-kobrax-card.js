@@ -671,6 +671,443 @@ if (!window.customCards.some((card) => card.type === "anycubic-kobrax-card")) {
   });
 }
 
+class AnycubicKobraXCameraCard extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._config = {};
+    this._hass = undefined;
+    this._busy = false;
+  }
+
+  setConfig(config) {
+    this._config = config || {};
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  getCardSize() {
+    return 5;
+  }
+
+  getGridOptions() {
+    return {
+      rows: "auto",
+      columns: 12,
+      min_columns: 4,
+    };
+  }
+
+  static getStubConfig() {
+    return {
+      name: "Camera",
+      camera_view: "live",
+      grid_options: {
+        columns: 12,
+        rows: "auto",
+      },
+    };
+  }
+
+  static getConfigForm() {
+    return {
+      schema: [
+        { name: "name", selector: { text: {} } },
+        { name: "camera_entity", selector: { entity: { domain: "camera" } } },
+        { name: "light_entity", selector: { entity: { domain: "light" } } },
+        {
+          name: "camera_view",
+          selector: {
+            select: {
+              options: [
+                { value: "live", label: "Live" },
+                { value: "auto", label: "Auto" },
+              ],
+              mode: "dropdown",
+            },
+          },
+        },
+      ],
+      computeLabel: (schema) => {
+        switch (schema.name) {
+          case "name":
+            return "Name";
+          case "camera_entity":
+            return "Camera entity";
+          case "light_entity":
+            return "Light entity";
+          case "camera_view":
+            return "Camera view";
+          default:
+            return schema.name;
+        }
+      },
+    };
+  }
+
+  _render() {
+    if (!this._hass) {
+      return;
+    }
+
+    const states = Object.values(this._hass.states);
+    const matches = this._findPrinterEntities(states);
+    const cameraState = this._entityFromConfig("camera_entity") || matches.camera;
+    const lightState = this._entityFromConfig("light_entity") || matches.light;
+    const cameraUnavailable = !cameraState || this._isUnavailable(cameraState);
+    const lightUnavailable = !lightState || this._isUnavailable(lightState);
+    const isStreaming = cameraState?.state === "streaming";
+    const lightIsOn = lightState?.state === "on";
+    const title = this._config.name || "Camera";
+    const streamLabel = this._busy
+      ? "Starting"
+      : isStreaming
+      ? "Stop"
+      : "Start";
+    const streamTitle = cameraUnavailable
+      ? "Camera unavailable"
+      : isStreaming
+      ? "Stop camera stream"
+      : "Start camera stream";
+    const lightTitle = lightUnavailable
+      ? "Printer light unavailable"
+      : `Turn ${lightIsOn ? "off" : "on"} printer light`;
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        *, *::before, *::after {
+          box-sizing: border-box;
+        }
+
+        :host {
+          container-type: inline-size;
+          display: block;
+          font-family: var(--ha-font-family-body, inherit);
+          min-width: 0;
+        }
+
+        ha-card {
+          background: var(
+            --ha-card-background,
+            var(--card-background-color, #fff)
+          );
+          border: var(--ha-card-border-width, 1px) solid
+            var(--ha-card-border-color, var(--divider-color, transparent));
+          border-radius: var(--ha-card-border-radius, 8px);
+          box-shadow: var(--ha-card-box-shadow, none);
+          color: var(--primary-text-color);
+          display: block;
+          overflow: hidden;
+          padding: 16px;
+          width: 100%;
+        }
+
+        .header {
+          align-items: center;
+          display: flex;
+          gap: 12px;
+          justify-content: space-between;
+          margin-bottom: 14px;
+        }
+
+        .title {
+          font-family: var(--ha-font-family-heading, inherit);
+          font-size: 1.25rem;
+          font-weight: 500;
+          line-height: 1.2;
+          margin: 0;
+          min-width: 0;
+          overflow: hidden;
+          text-overflow: ellipsis;
+          white-space: nowrap;
+        }
+
+        .state {
+          color: var(--secondary-text-color);
+          flex: 0 0 auto;
+          font-size: 0.95rem;
+          line-height: 1.2;
+        }
+
+        .viewer {
+          align-items: center;
+          aspect-ratio: 16 / 9;
+          background: var(--secondary-background-color);
+          border: var(--ha-card-border-width, 1px) solid
+            var(--ha-card-border-color, var(--divider-color, transparent));
+          border-radius: 8px;
+          display: flex;
+          justify-content: center;
+          margin-bottom: 14px;
+          overflow: hidden;
+          position: relative;
+          width: 100%;
+        }
+
+        .viewer hui-image {
+          display: block;
+          height: 100%;
+          width: 100%;
+        }
+
+        .placeholder {
+          align-items: center;
+          color: var(--secondary-text-color);
+          display: grid;
+          gap: 10px;
+          justify-items: center;
+          padding: 18px;
+          text-align: center;
+        }
+
+        .placeholder ha-icon {
+          color: var(--state-icon-color, var(--secondary-text-color));
+          height: 44px;
+          width: 44px;
+        }
+
+        .actions {
+          display: grid;
+          gap: 10px;
+          grid-template-columns: minmax(0, 1fr) 48px;
+        }
+
+        button {
+          align-items: center;
+          background: var(--secondary-background-color);
+          border: var(--ha-card-border-width, 1px) solid
+            var(--ha-card-border-color, var(--divider-color, transparent));
+          border-radius: 8px;
+          color: var(--primary-text-color);
+          cursor: pointer;
+          display: inline-flex;
+          font: inherit;
+          font-weight: 500;
+          gap: 8px;
+          justify-content: center;
+          min-height: 46px;
+          min-width: 0;
+          padding: 0 14px;
+          transition:
+            background-color 120ms ease,
+            border-color 120ms ease,
+            color 120ms ease,
+            transform 120ms ease;
+        }
+
+        button.primary {
+          background: var(--accent-color);
+          border-color: var(--accent-color);
+          color: var(--text-primary-color, #fff);
+        }
+
+        button.icon {
+          padding: 0;
+        }
+
+        button.active {
+          color: var(--state-light-active-color, var(--accent-color));
+        }
+
+        button:not([disabled]):hover {
+          border-color: var(--accent-color);
+          filter: brightness(1.04);
+        }
+
+        button:not([disabled]):focus-visible {
+          outline: 2px solid var(--accent-color);
+          outline-offset: 3px;
+        }
+
+        button:not([disabled]):active {
+          transform: scale(0.97);
+        }
+
+        button[disabled] {
+          cursor: default;
+          opacity: 0.45;
+        }
+
+        ha-icon {
+          height: 22px;
+          width: 22px;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          button {
+            transition: none;
+          }
+        }
+
+        @container (min-width: 620px) {
+          ha-card {
+            padding: 24px;
+          }
+
+          .header {
+            margin-bottom: 18px;
+          }
+
+          .title {
+            font-size: 1.45rem;
+          }
+
+          .viewer {
+            margin-bottom: 18px;
+          }
+        }
+      </style>
+
+      <ha-card>
+        <header class="header">
+          <h2 class="title">${this._escape(title)}</h2>
+          <div class="state">${this._escape(this._formatState(cameraState))}</div>
+        </header>
+
+        <div class="viewer">
+          ${cameraState && isStreaming ? "<hui-image></hui-image>" : `
+            <div class="placeholder">
+              <ha-icon icon="mdi:video-outline"></ha-icon>
+              <div>${this._escape(cameraUnavailable ? "Camera unavailable" : "Stream stopped")}</div>
+            </div>
+          `}
+        </div>
+
+        <div class="actions">
+          <button
+            type="button"
+            class="stream ${isStreaming ? "" : "primary"}"
+            title="${this._escapeAttribute(streamTitle)}"
+            ${cameraUnavailable || this._busy ? "disabled" : ""}
+          >
+            <ha-icon icon="${isStreaming ? "mdi:stop" : "mdi:play"}"></ha-icon>
+            <span>${this._escape(streamLabel)}</span>
+          </button>
+          <button
+            type="button"
+            class="icon light ${lightIsOn ? "active" : ""}"
+            title="${this._escapeAttribute(lightTitle)}"
+            aria-label="${this._escapeAttribute(lightTitle)}"
+            ${lightUnavailable ? "disabled" : ""}
+          >
+            <ha-icon icon="${lightIsOn ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}"></ha-icon>
+          </button>
+        </div>
+      </ha-card>
+    `;
+
+    const image = this.shadowRoot.querySelector("hui-image");
+    if (image && cameraState) {
+      image.hass = this._hass;
+      image.stateObj = cameraState;
+      image.cameraImage = cameraState.entity_id;
+      image.cameraView = this._config.camera_view || "live";
+      image.aspectRatio = "16:9";
+      image.showState = false;
+      image.showName = false;
+    }
+
+    const streamButton = this.shadowRoot.querySelector(".stream");
+    if (streamButton && !cameraUnavailable && !this._busy) {
+      streamButton.addEventListener("click", () => this._toggleCamera(cameraState));
+    }
+    const lightButton = this.shadowRoot.querySelector(".light");
+    if (lightButton && !lightUnavailable) {
+      lightButton.addEventListener("click", () => this._toggleLight(lightState));
+    }
+  }
+
+  _entityFromConfig(key) {
+    const entityId = this._config[key];
+    return entityId ? this._hass.states[entityId] : undefined;
+  }
+
+  _findPrinterEntities(states) {
+    const matches = states.filter((state) => {
+      const entityId = state.entity_id || "";
+      const name = state.attributes?.friendly_name || "";
+      return entityId.includes("anycubic_kobra_x") || name.includes("Anycubic Kobra X");
+    });
+    return {
+      camera: matches.find((state) => state.entity_id?.startsWith("camera.")),
+      light: matches.find((state) => state.entity_id?.startsWith("light.")),
+    };
+  }
+
+  async _toggleCamera(cameraState) {
+    if (!cameraState || this._isUnavailable(cameraState)) {
+      return;
+    }
+    this._busy = true;
+    this._render();
+    try {
+      await this._hass.callService(
+        "camera",
+        cameraState.state === "streaming" ? "turn_off" : "turn_on",
+        { entity_id: cameraState.entity_id },
+      );
+    } finally {
+      this._busy = false;
+      this._render();
+    }
+  }
+
+  _toggleLight(lightState) {
+    if (!lightState || this._isUnavailable(lightState)) {
+      return;
+    }
+    this._hass.callService(
+      "light",
+      lightState.state === "on" ? "turn_off" : "turn_on",
+      { entity_id: lightState.entity_id },
+    );
+  }
+
+  _formatState(state) {
+    if (!state) {
+      return "Not found";
+    }
+    if (this._isUnavailable(state)) {
+      return "Unavailable";
+    }
+    return state.state === "streaming" ? "Streaming" : "Stopped";
+  }
+
+  _isUnavailable(state) {
+    return state.state === "unknown" || state.state === "unavailable";
+  }
+
+  _escape(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[char]);
+  }
+
+  _escapeAttribute(value) {
+    return this._escape(value).replace(/`/g, "&#96;");
+  }
+}
+
+if (!customElements.get("anycubic-kobrax-camera-card")) {
+  customElements.define("anycubic-kobrax-camera-card", AnycubicKobraXCameraCard);
+}
+
+if (!window.customCards.some((card) => card.type === "anycubic-kobrax-camera-card")) {
+  window.customCards.push({
+    type: "anycubic-kobrax-camera-card",
+    name: "Anycubic Kobra X Camera",
+    description: "Start and stop the printer camera stream and control the light.",
+  });
+}
+
 class AnycubicKobraXAxisCard extends HTMLElement {
   constructor() {
     super();

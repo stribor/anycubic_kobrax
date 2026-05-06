@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import asyncio
+
 from homeassistant.components.camera import Camera, CameraEntityFeature
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.core import HomeAssistant
@@ -51,8 +53,14 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
         """Start camera capture."""
         await self.hass.async_add_executor_job(self.coordinator.start_video)
         self._attr_is_streaming = True
+        for _ in range(16):
+            if self.coordinator.stream_url() is not None:
+                break
+            await asyncio.sleep(0.5)
+        self.async_write_ha_state()
 
     async def async_turn_off(self) -> None:
         """Stop camera capture."""
         await self.hass.async_add_executor_job(self.coordinator.stop_video)
         self._attr_is_streaming = False
+        self.async_write_ha_state()
