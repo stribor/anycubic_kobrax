@@ -1,4 +1,32 @@
 const ANYCUBIC_MATCH_TEXT = ["Anycubic", "Kobra X"];
+const ANYCUBIC_DEFAULT_STATS = [
+  "status",
+  "eta",
+  "elapsed",
+  "hotend",
+  "bed",
+  "fan",
+  "remaining",
+];
+const ANYCUBIC_STAT_LABELS = {
+  status: "Status",
+  eta: "ETA",
+  elapsed: "Elapsed",
+  hotend: "Hotend",
+  bed: "Bed",
+  fan: "Fan",
+  remaining: "Remaining",
+};
+const ANYCUBIC_IDLE_STATUS_TEXT = [
+  "free",
+  "idle",
+  "ready",
+  "standby",
+  "complete",
+  "completed",
+  "finish",
+  "finished",
+];
 
 function anycubicEntityMatches(states) {
   const explicit = states.filter((state) => {
@@ -55,7 +83,7 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   getCardSize() {
-    return 8;
+    return this._config.layout === "compact" ? 3 : 8;
   }
 
   getGridOptions() {
@@ -90,6 +118,80 @@ class AnycubicKobraXCard extends HTMLElement {
             text: {},
           },
         },
+        {
+          name: "layout",
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: [
+                { value: "full", label: "Full" },
+                { value: "compact", label: "Compact" },
+              ],
+            },
+          },
+        },
+        {
+          name: "progress_style",
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: [
+                { value: "number", label: "Large number" },
+                { value: "bar", label: "Progress bar" },
+                { value: "hidden", label: "Hidden" },
+              ],
+            },
+          },
+        },
+        {
+          name: "hide_progress_when_idle",
+          selector: {
+            boolean: {},
+          },
+        },
+        {
+          name: "hide_preview_when_idle",
+          selector: {
+            boolean: {},
+          },
+        },
+        {
+          name: "visible_stats",
+          selector: {
+            select: {
+              multiple: true,
+              mode: "list",
+              options: Object.entries(ANYCUBIC_STAT_LABELS).map(([value, label]) => ({
+                value,
+                label,
+              })),
+            },
+          },
+        },
+        {
+          name: "stats_columns",
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: [
+                { value: 1, label: "1 column" },
+                { value: 2, label: "2 columns" },
+              ],
+            },
+          },
+        },
+        {
+          name: "show_slots",
+          selector: {
+            boolean: {},
+          },
+        },
+        {
+          name: "show_header",
+          selector: {
+            boolean: {},
+          },
+        },
       ],
       computeLabel: (schema) => {
         switch (schema.name) {
@@ -97,6 +199,22 @@ class AnycubicKobraXCard extends HTMLElement {
             return "Name";
           case "image":
             return "Image URL";
+          case "layout":
+            return "Layout";
+          case "progress_style":
+            return "Progress style";
+          case "hide_progress_when_idle":
+            return "Hide progress when idle";
+          case "hide_preview_when_idle":
+            return "Hide preview when idle";
+          case "visible_stats":
+            return "Visible stats";
+          case "stats_columns":
+            return "Stats columns";
+          case "show_slots":
+            return "Show filament slots";
+          case "show_header":
+            return "Show header";
           default:
             return schema.name;
         }
@@ -112,15 +230,48 @@ class AnycubicKobraXCard extends HTMLElement {
     const states = Object.values(this._hass.states);
     const entities = this._findPrinterEntities(states);
     const get = (key) => this._entityFromConfig(key) || entities[key];
-    const slotCards = [1, 2, 3, 4].map((slot) => this._renderSlot(slot, get));
+    const layout = this._config.layout === "compact" ? "compact" : "full";
     const remaining = this._seconds(get("remaining_time"));
     const eta = remaining === null ? "--" : this._formatClock(Date.now() + remaining * 1000);
     const progress = this._number(get("progress"), 0);
     const title = this._config.name || this._string(get("printer_name")) || "Anycubic printer";
-    const status = this._formatStatus(this._string(get("print_state")) || this._state(get("last_will")));
+    const rawStatus = this._string(get("print_state")) || this._state(get("last_will"));
+    const status = this._formatStatus(rawStatus);
     const elapsed = this._formatDuration(this._seconds(get("total_time")), false);
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
-    const previewUrl = this._previewImageUrl(get("preview_image"));
+    const isIdle = this._isIdle(rawStatus, progress, remaining);
+    const previewUrl = this._config.hide_preview_when_idle && isIdle
+      ? ""
+      : this._previewImageUrl(get("preview_image"));
+    const progressStyle = ["number", "bar", "hidden"].includes(this._config.progress_style)
+      ? this._config.progress_style
+      : "number";
+    const hideProgress = progressStyle === "hidden" || (this._config.hide_progress_when_idle && isIdle);
+    const visibleStats = this._visibleStats();
+    const statsColumns = Number(this._config.stats_columns) === 2 ? 2 : 1;
+    const showSlots = layout !== "compact" && this._config.show_slots !== false;
+    const slotCards = showSlots ? [1, 2, 3, 4].map((slot) => this._renderSlot(slot, get)) : [];
+    const showHeader = this._config.show_header !== false;
+    const statValues = {
+      status,
+      eta,
+      elapsed,
+      hotend: this._formatTemp(get("nozzle_temperature")),
+      bed: this._formatTemp(get("bed_temperature")),
+      fan: this._formatPercent(this._number(get("fan_speed"))),
+      remaining: this._formatDuration(remaining, false),
+    };
+    const statsHtml = visibleStats
+      .map((key) => this._renderStat(key, statValues[key]))
+      .join("");
+    const progressHtml = hideProgress
+      ? ""
+      : progressStyle === "bar"
+      ? this._renderProgressBar(progress)
+      : `<div class="progress-number">${this._escape(this._formatPercent(progress))}</div>`;
+    const compactMeta = isIdle
+      ? status
+      : `${this._formatPercent(progress)} / ${this._formatDuration(remaining, false)}`;
     const lightState = get("light");
     const lightUnavailable = !lightState || this._isUnavailable(lightState);
     const lightIsOn = lightState?.state === "on";
@@ -264,14 +415,15 @@ class AnycubicKobraXCard extends HTMLElement {
           display: flex;
           gap: 14px;
           justify-content: center;
-          min-height: 150px;
+          min-height: ${layout === "compact" ? "96px" : "150px"};
+          position: relative;
         }
 
         .printer-image {
           display: block;
           filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.24));
           height: auto;
-          max-height: 90px;
+          max-height: ${layout === "compact" ? "86px" : "90px"};
           max-width: ${previewUrl ? "35%" : "50%"};
           object-fit: contain;
         }
@@ -290,7 +442,7 @@ class AnycubicKobraXCard extends HTMLElement {
           width: min(62%, 220px);
         }
 
-        .progress {
+        .progress-number {
           font-size: 2.6rem;
           font-weight: 500;
           line-height: 1;
@@ -298,12 +450,49 @@ class AnycubicKobraXCard extends HTMLElement {
           text-align: center;
         }
 
+        .progress-bar-wrap {
+          margin-bottom: 14px;
+        }
+
+        .progress-bar-top {
+          align-items: center;
+          color: var(--secondary-text-color, var(--primary-text-color));
+          display: flex;
+          font-size: 0.95rem;
+          justify-content: space-between;
+          line-height: 1.2;
+          margin-bottom: 7px;
+        }
+
+        .progress-track {
+          background: var(--secondary-background-color);
+          border-radius: 999px;
+          height: 10px;
+          overflow: hidden;
+          width: 100%;
+        }
+
+        .progress-fill {
+          background: var(--accent-color);
+          border-radius: inherit;
+          height: 100%;
+          transition: width 160ms ease;
+          width: var(--progress-value);
+        }
+
         .stats {
           display: grid;
           font-size: 1rem;
           gap: 6px 16px;
-          grid-template-columns: auto 1fr;
+          grid-template-columns: repeat(${statsColumns}, minmax(0, 1fr));
           line-height: 1.1;
+        }
+
+        .stat {
+          display: grid;
+          gap: 8px;
+          grid-template-columns: auto minmax(0, 1fr);
+          min-width: 0;
         }
 
         .label {
@@ -316,6 +505,46 @@ class AnycubicKobraXCard extends HTMLElement {
           font-weight: 400;
           overflow-wrap: anywhere;
           text-align: right;
+        }
+
+        ha-card.compact {
+          padding: 12px;
+        }
+
+        .compact .top {
+          margin-bottom: 8px;
+        }
+
+        .compact .main {
+          gap: 10px;
+        }
+
+        .compact .printer {
+          min-height: 96px;
+        }
+
+        .compact .preview-image {
+          max-height: 110px;
+          width: min(62%, 180px);
+        }
+
+        .compact .summary {
+          min-width: 0;
+        }
+
+        .compact .progress-bar-wrap {
+          margin-bottom: 0;
+        }
+
+        .compact-meta {
+          color: var(--secondary-text-color, var(--primary-text-color));
+          font-size: 0.95rem;
+          line-height: 1.2;
+          margin-top: 8px;
+          overflow: hidden;
+          text-align: center;
+          text-overflow: ellipsis;
+          white-space: nowrap;
         }
 
         .slots {
@@ -407,11 +636,11 @@ class AnycubicKobraXCard extends HTMLElement {
           }
 
           .printer {
-            min-height: 240px;
+            min-height: ${layout === "compact" ? "110px" : "240px"};
           }
 
           .printer-image {
-            max-height: 132px;
+            max-height: ${layout === "compact" ? "104px" : "132px"};
             max-width: ${previewUrl ? "36%" : "50%"};
           }
 
@@ -420,7 +649,7 @@ class AnycubicKobraXCard extends HTMLElement {
             width: min(62%, 300px);
           }
 
-          .progress {
+          .progress-number {
             font-size: 3.2rem;
             margin-bottom: 24px;
           }
@@ -428,6 +657,22 @@ class AnycubicKobraXCard extends HTMLElement {
           .stats {
             font-size: 1.1rem;
             gap: 8px 22px;
+          }
+
+          ha-card.compact {
+            padding: 16px;
+          }
+
+          .compact .main {
+            grid-template-columns: minmax(120px, 1fr) minmax(160px, 1fr);
+          }
+
+          .compact .top {
+            margin-bottom: 10px;
+          }
+
+          .compact .preview-image {
+            max-height: 130px;
           }
 
           .slots {
@@ -456,21 +701,23 @@ class AnycubicKobraXCard extends HTMLElement {
           }
         }
       </style>
-      <ha-card>
-        <header class="top">
-          <span class="icon" title="Power">${this._powerIcon()}</span>
-          <div class="title">
-            <span class="dot"></span>
-            <span class="title-text">${this._escape(title)}</span>
-          </div>
-          <button
-            type="button"
-            class="icon light-toggle ${lightIsOn ? "active" : ""}"
-            title="${this._escapeAttribute(lightTitle)}"
-            ${lightUnavailable ? "disabled" : ""}
-            aria-label="${this._escapeAttribute(lightTitle)}"
-          >${this._lightIcon()}</button>
-        </header>
+      <ha-card class="${layout}">
+        ${showHeader ? `
+          <header class="top">
+            <span class="icon" title="Power">${this._powerIcon()}</span>
+            <div class="title">
+              <span class="dot"></span>
+              <span class="title-text">${this._escape(title)}</span>
+            </div>
+            <button
+              type="button"
+              class="icon light-toggle ${lightIsOn ? "active" : ""}"
+              title="${this._escapeAttribute(lightTitle)}"
+              ${lightUnavailable ? "disabled" : ""}
+              aria-label="${this._escapeAttribute(lightTitle)}"
+            >${this._lightIcon()}</button>
+          </header>
+        ` : ""}
 
         <div class="main">
           <div class="printer">
@@ -484,20 +731,17 @@ class AnycubicKobraXCard extends HTMLElement {
             ` : ""}
           </div>
           <div class="summary">
-            <div class="progress">${this._escape(this._formatPercent(progress))}</div>
-            <div class="stats">
-              <div class="label">Status</div><div class="value">${this._escape(status)}</div>
-              <div class="label">ETA</div><div class="value">${this._escape(eta)}</div>
-              <div class="label">Elapsed</div><div class="value">${this._escape(elapsed)}</div>
-              <div class="label">Hotend</div><div class="value">${this._escape(this._formatTemp(get("nozzle_temperature")))}</div>
-              <div class="label">Bed</div><div class="value">${this._escape(this._formatTemp(get("bed_temperature")))}</div>
-              <div class="label">Fan</div><div class="value">${this._escape(this._formatPercent(this._number(get("fan_speed"))))}</div>
-              <div class="label">Remaining</div><div class="value">${this._escape(this._formatDuration(remaining, false))}</div>
-            </div>
+            ${progressHtml}
+            ${layout === "compact" ? `
+              <div class="compact-meta">${this._escape(compactMeta)}</div>
+            ` : ""}
+            ${layout !== "compact" && statsHtml ? `
+              <div class="stats">${statsHtml}</div>
+            ` : ""}
           </div>
         </div>
 
-        <div class="slots">${slotCards.join("")}</div>
+        ${slotCards.length ? `<div class="slots">${slotCards.join("")}</div>` : ""}
       </ha-card>
     `;
 
@@ -558,6 +802,37 @@ class AnycubicKobraXCard extends HTMLElement {
     );
   }
 
+  _visibleStats() {
+    if (!Array.isArray(this._config.visible_stats)) {
+      return ANYCUBIC_DEFAULT_STATS;
+    }
+    return this._config.visible_stats.filter((key) => ANYCUBIC_STAT_LABELS[key]);
+  }
+
+  _renderStat(key, value) {
+    return `
+      <div class="stat">
+        <div class="label">${this._escape(ANYCUBIC_STAT_LABELS[key])}</div>
+        <div class="value">${this._escape(value)}</div>
+      </div>
+    `;
+  }
+
+  _renderProgressBar(progress) {
+    const safeProgress = Math.min(100, Math.max(0, progress ?? 0));
+    return `
+      <div class="progress-bar-wrap">
+        <div class="progress-bar-top">
+          <span>Progress</span>
+          <span>${this._escape(this._formatPercent(progress))}</span>
+        </div>
+        <div class="progress-track" role="progressbar" aria-valuemin="0" aria-valuemax="100" aria-valuenow="${Math.round(safeProgress)}">
+          <div class="progress-fill" style="--progress-value: ${safeProgress}%"></div>
+        </div>
+      </div>
+    `;
+  }
+
   _renderSlot(slot, get) {
     const typeState = get(`slot_${slot}_type`);
     const colorState = get(`slot_${slot}_color`);
@@ -602,6 +877,14 @@ class AnycubicKobraXCard extends HTMLElement {
 
   _isUnavailable(state) {
     return state.state === "unknown" || state.state === "unavailable";
+  }
+
+  _isIdle(status, progress, remaining) {
+    const normalized = String(status || "").toLowerCase().replaceAll(/[\s_-]+/g, "");
+    if (ANYCUBIC_IDLE_STATUS_TEXT.some((text) => normalized.includes(text))) {
+      return true;
+    }
+    return progress >= 100 && remaining === 0;
   }
 
   _state(state) {

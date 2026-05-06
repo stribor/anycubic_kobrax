@@ -58,6 +58,43 @@ does not work, set the path manually in options, for example:
 - Local Home Assistant brand icon at
   `custom_components/anycubic_kobrax/brand/icon.png`
 
+## Dashboard card
+
+The main `anycubic-kobrax-card` auto-discovers the integration entities, but it
+can be made shorter with optional card settings:
+
+```yaml
+type: custom:anycubic-kobrax-card
+name: Kobra X
+progress_style: bar # number, bar, or hidden
+hide_progress_when_idle: true
+hide_preview_when_idle: true
+stats_columns: 2
+visible_stats:
+  - status
+  - eta
+  - elapsed
+  - hotend
+  - bed
+  - fan
+  - remaining
+show_slots: true
+```
+
+For a small image-focused card, use compact layout. It hides the detailed stats
+and filament slots, keeps the printer/preview image, and shows either progress
+with remaining time or the idle/free status:
+
+```yaml
+type: custom:anycubic-kobrax-card
+name: Kobra X
+layout: compact
+progress_style: bar
+hide_preview_when_idle: true
+hide_progress_when_idle: true
+show_header: false
+```
+
 ## Still to improve
 
 - SSDP/mDNS discovery for `uuid:fdm:...`
