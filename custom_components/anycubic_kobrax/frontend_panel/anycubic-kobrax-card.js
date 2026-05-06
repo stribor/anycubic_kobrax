@@ -709,6 +709,9 @@ class AnycubicKobraXCameraCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    if (this._updateStreamingView()) {
+      return;
+    }
     this._render();
   }
 
@@ -1024,13 +1027,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
 
     const image = this.shadowRoot.querySelector("hui-image");
     if (image && cameraState) {
-      image.hass = this._hass;
-      image.stateObj = cameraState;
-      image.cameraImage = cameraState.entity_id;
-      image.cameraView = this._config.camera_view || "live";
-      image.aspectRatio = "16:9";
-      image.showState = false;
-      image.showName = false;
+      this._configureImage(image, cameraState);
     }
 
     const streamButton = this.shadowRoot.querySelector(".stream");
@@ -1046,6 +1043,39 @@ class AnycubicKobraXCameraCard extends HTMLElement {
   _entityFromConfig(key) {
     const entityId = this._config[key];
     return entityId ? this._hass.states[entityId] : undefined;
+  }
+
+  _cameraState() {
+    const states = Object.values(this._hass.states);
+    const matches = this._findPrinterEntities(states);
+    return this._entityFromConfig("camera_entity") || matches.camera;
+  }
+
+  _updateStreamingView() {
+    const image = this.shadowRoot.querySelector("hui-image");
+    if (!image) {
+      return false;
+    }
+    const cameraState = this._cameraState();
+    if (!cameraState || cameraState.state !== "streaming") {
+      return false;
+    }
+    this._configureImage(image, cameraState);
+    const state = this.shadowRoot.querySelector(".state");
+    if (state) {
+      state.textContent = this._formatState(cameraState);
+    }
+    return true;
+  }
+
+  _configureImage(image, cameraState) {
+    image.hass = this._hass;
+    image.stateObj = cameraState;
+    image.cameraImage = cameraState.entity_id;
+    image.cameraView = this._config.camera_view || "live";
+    image.aspectRatio = "16:9";
+    image.showState = false;
+    image.showName = false;
   }
 
   _findPrinterEntities(states) {
