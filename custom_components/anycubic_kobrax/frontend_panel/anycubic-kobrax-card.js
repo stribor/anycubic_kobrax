@@ -25,6 +25,17 @@ function anycubicEntityMatches(states) {
     : [];
 }
 
+function anycubicCameraCardDefaults(hass) {
+  const states = Object.values(hass?.states || {});
+  const matches = anycubicEntityMatches(states);
+  const camera = matches.find((state) => state.entity_id?.startsWith("camera."));
+  const light = matches.find((state) => state.entity_id?.startsWith("light."));
+  return {
+    ...(camera ? { camera_entity: camera.entity_id } : {}),
+    ...(light ? { light_entity: light.entity_id } : {}),
+  };
+}
+
 class AnycubicKobraXCard extends HTMLElement {
   constructor() {
     super();
@@ -727,10 +738,10 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     };
   }
 
-  static getStubConfig() {
+  static getStubConfig(hass) {
     return {
       name: "Camera",
-      camera_view: "live",
+      ...anycubicCameraCardDefaults(hass),
       grid_options: {
         columns: 12,
         rows: "auto",
@@ -744,18 +755,6 @@ class AnycubicKobraXCameraCard extends HTMLElement {
         { name: "name", selector: { text: {} } },
         { name: "camera_entity", selector: { entity: { domain: "camera" } } },
         { name: "light_entity", selector: { entity: { domain: "light" } } },
-        {
-          name: "camera_view",
-          selector: {
-            select: {
-              options: [
-                { value: "live", label: "Live" },
-                { value: "auto", label: "Auto" },
-              ],
-              mode: "dropdown",
-            },
-          },
-        },
       ],
       computeLabel: (schema) => {
         switch (schema.name) {
@@ -765,8 +764,6 @@ class AnycubicKobraXCameraCard extends HTMLElement {
             return "Camera entity";
           case "light_entity":
             return "Light entity";
-          case "camera_view":
-            return "Camera view";
           default:
             return schema.name;
         }

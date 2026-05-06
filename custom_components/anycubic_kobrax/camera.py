@@ -35,8 +35,8 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
 
     async def stream_source(self) -> str | None:
         """Return the current FLV stream URL for ffmpeg."""
-        if self.coordinator.stream_url() is None:
-            await self.async_turn_on()
+        if not self.is_streaming:
+            return None
         return self.coordinator.stream_url()
 
     async def async_camera_image(
