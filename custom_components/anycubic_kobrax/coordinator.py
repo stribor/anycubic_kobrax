@@ -21,7 +21,7 @@ from uuid import uuid4
 import paho.mqtt.client as mqtt
 
 from homeassistant.config_entries import ConfigEntry
-from homeassistant.const import CONF_HOST
+from homeassistant.const import CONF_HOST, CONF_NAME
 from homeassistant.core import HomeAssistant, callback
 from homeassistant.exceptions import ConfigEntryNotReady, HomeAssistantError
 from homeassistant.helpers.update_coordinator import DataUpdateCoordinator, UpdateFailed
@@ -34,6 +34,9 @@ from .const import (
     ATTR_BED_TEMP,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
+    ATTR_DEVICE_CN,
+    ATTR_DEVICE_USN,
+    ATTR_DEVICE_ZONE,
     ATTR_ESTIMATE_DURATION,
     ATTR_ESTIMATE_WEIGHT,
     ATTR_FAN_SPEED,
@@ -50,6 +53,7 @@ from .const import (
     ATTR_LOADED_SLOT,
     ATTR_MATERIAL,
     ATTR_MODEL,
+    ATTR_MODEL_ID,
     ATTR_MULTI_COLOR_BOX,
     ATTR_MULTI_COLOR_BOX_HUMIDITY,
     ATTR_MULTI_COLOR_BOX_STATUS,
@@ -81,7 +85,11 @@ from .const import (
     ATTR_VIDEO_STATE,
     ATTR_WIFI_SIGNAL,
     CONF_DEVICE_CERT,
+    CONF_DEVICE_CN,
     CONF_DEVICE_KEY,
+    CONF_DEVICE_NAME,
+    CONF_DEVICE_USN,
+    CONF_DEVICE_ZONE,
     CONF_MODEL_NAME,
     CONF_MQTT_PASSWORD,
     CONF_MQTT_USERNAME,
@@ -120,7 +128,12 @@ class AnycubicDevice:
     password: str
     device_cert: str | None
     device_key: str | None
+    name: str | None
+    device_name: str | None
     model_name: str | None
+    device_cn: str | None
+    device_usn: str | None
+    device_zone: str | None
     stream_path: str | None
 
 
@@ -142,7 +155,12 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ),
             device_cert=entry.data.get(CONF_DEVICE_CERT),
             device_key=entry.data.get(CONF_DEVICE_KEY),
+            name=entry.options.get(CONF_NAME, entry.data.get(CONF_NAME)),
+            device_name=entry.data.get(CONF_DEVICE_NAME),
             model_name=entry.data.get(CONF_MODEL_NAME),
+            device_cn=entry.data.get(CONF_DEVICE_CN),
+            device_usn=entry.data.get(CONF_DEVICE_USN),
+            device_zone=entry.data.get(CONF_DEVICE_ZONE),
             stream_path=entry.options.get(
                 CONF_STREAM_PATH, entry.data.get(CONF_STREAM_PATH)
             ),
@@ -151,7 +169,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._connect_event = Event()
         self._connected = False
         self._raw_messages: dict[str, Any] = {}
-        self._state: dict[str, Any] = {}
+        self._state: dict[str, Any] = self._initial_state()
         self._requested_file_details: set[str] = set()
         self._event_sequence = 0
         self._last_axis_event_msgid: str | None = None
@@ -189,9 +207,30 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             "model": (
                 self.device.model_name or f"Kobra X type {self.device.type_id}"
             ),
-            "name": self.device.model_name or "Anycubic Kobra X",
+            "name": self.device.name
+            or self.device.device_name
+            or self.device.model_name
+            or "Anycubic printer",
             "configuration_url": f"http://{self.device.host}:{DEFAULT_HTTP_PORT}",
         }
+
+    def _initial_state(self) -> dict[str, Any]:
+        """Return stable metadata discovered during setup."""
+        state: dict[str, Any] = {
+            ATTR_IP_ADDRESS: self.device.host,
+            ATTR_MODEL_ID: self.device.type_id,
+        }
+        if self.device.name or self.device.device_name:
+            state[ATTR_PRINTER_NAME] = self.device.name or self.device.device_name
+        if self.device.model_name:
+            state[ATTR_MODEL] = self.device.model_name
+        if self.device.device_cn:
+            state[ATTR_DEVICE_CN] = self.device.device_cn
+        if self.device.device_usn:
+            state[ATTR_DEVICE_USN] = self.device.device_usn
+        if self.device.device_zone:
+            state[ATTR_DEVICE_ZONE] = self.device.device_zone
+        return state
 
     @property
     def connected(self) -> bool:
@@ -563,7 +602,11 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "state",
             ),
             ATTR_PRINTER_NAME: ("printerName", "printer_name", "deviceName"),
-            ATTR_MODEL: ("model", "machineModel"),
+            ATTR_MODEL: ("model", "machineModel", "modelName"),
+            ATTR_MODEL_ID: ("modelId", "modeId", "typeId"),
+            ATTR_DEVICE_CN: ("cn",),
+            ATTR_DEVICE_USN: ("usn",),
+            ATTR_DEVICE_ZONE: ("zone",),
             ATTR_FIRMWARE_VERSION: ("version", "firmwareVersion", "firmware_version"),
             ATTR_IP_ADDRESS: ("ip", "ipAddress", "ip_address"),
             ATTR_PROGRESS: (

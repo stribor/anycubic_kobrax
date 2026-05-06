@@ -22,8 +22,12 @@ from homeassistant.helpers.aiohttp_client import async_get_clientsession
 
 from .const import (
     CONF_DEVICE_CERT,
+    CONF_DEVICE_CN,
     CONF_DEVICE_KEY,
+    CONF_DEVICE_NAME,
+    CONF_DEVICE_USN,
     CONF_DEVICE_UUID,
+    CONF_DEVICE_ZONE,
     CONF_HOST,
     CONF_MODEL_NAME,
     CONF_MQTT_PASSWORD,
@@ -57,7 +61,11 @@ class LanProvisioningResult:
     device_cert: str
     device_key: str
     device_uuid: str | None
+    device_name: str | None
     model_name: str | None
+    device_cn: str | None
+    device_usn: str | None
+    device_zone: str | None
 
     def as_config_data(self) -> dict[str, Any]:
         """Return a config-entry-safe representation."""
@@ -72,8 +80,16 @@ class LanProvisioningResult:
         }
         if self.device_uuid:
             data[CONF_DEVICE_UUID] = self.device_uuid
+        if self.device_name:
+            data[CONF_DEVICE_NAME] = self.device_name
         if self.model_name:
             data[CONF_MODEL_NAME] = self.model_name
+        if self.device_cn:
+            data[CONF_DEVICE_CN] = self.device_cn
+        if self.device_usn:
+            data[CONF_DEVICE_USN] = self.device_usn
+        if self.device_zone:
+            data[CONF_DEVICE_ZONE] = self.device_zone
         return data
 
 
@@ -131,14 +147,13 @@ async def async_probe_lan_printer(
         password=_require_string(bundle, "password"),
         device_cert=_require_string(bundle, "devicecrt"),
         device_key=_require_string(bundle, "devicepk"),
-        device_uuid=info.get("usn") if isinstance(info.get("usn"), str) else None,
-        model_name=(
-            bundle.get("modelName")
-            if isinstance(bundle.get("modelName"), str)
-            else info.get("modelName")
-            if isinstance(info.get("modelName"), str)
-            else None
-        ),
+        device_uuid=_optional_string(info.get("usn")),
+        device_name=_optional_string(info.get("deviceName")),
+        model_name=_optional_string(bundle.get("modelName"))
+        or _optional_string(info.get("modelName")),
+        device_cn=_optional_string(info.get("cn")),
+        device_usn=_optional_string(info.get("usn")),
+        device_zone=_optional_string(info.get("zone")),
     )
 
 
@@ -198,6 +213,15 @@ def _require_string(data: dict[str, Any], key: str) -> str:
     if not isinstance(value, str) or not value:
         raise InvalidResponse(f"Printer response did not include {key}")
     return value
+
+
+def _optional_string(value: Any) -> str | None:
+    """Return a non-empty string representation for optional metadata."""
+    if isinstance(value, str):
+        return value or None
+    if isinstance(value, int):
+        return str(value)
+    return None
 
 
 def _coerce_type_id(value: Any) -> int:

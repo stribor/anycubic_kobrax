@@ -23,8 +23,10 @@ host: 192.168.1.100
 
 During setup the integration reads `http://<printer>:18910/info`, signs the
 printer's LAN control request, decrypts the returned MQTT bundle, and stores the
-local MQTT username, password, client certificate, client key, model ID, and
-printer ID in the Home Assistant config entry.
+local MQTT username, password, client certificate, client key, model ID, printer
+ID, and discovered printer metadata in the Home Assistant config entry. The
+printer name is prefilled from `deviceName` and can be edited during setup or
+later from the integration options.
 
 Do not commit real printer IDs, host addresses, stream tokens, MQTT
 credentials, client certificates, or client keys. For local development, keep

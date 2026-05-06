@@ -8,6 +8,13 @@
           "host": "Printer host or IP",
           "stream_path": "Camera stream path, optional, for example /live/k5DawnaQ"
         }
+      },
+      "details": {
+        "title": "Confirm printer details",
+        "description": "The printer metadata was read from /info.",
+        "data": {
+          "name": "Printer name"
+        }
       }
     },
     "error": {
@@ -21,6 +28,7 @@
       "init": {
         "title": "Anycubic Kobra X options",
         "data": {
+          "name": "Printer name",
           "stream_path": "Camera stream path",
           "mqtt_username": "MQTT username",
           "mqtt_password": "MQTT password"
@@ -50,6 +58,18 @@
       },
       "model": {
         "name": "Model"
+      },
+      "model_id": {
+        "name": "Model ID"
+      },
+      "device_cn": {
+        "name": "Device CN"
+      },
+      "device_usn": {
+        "name": "Device USN"
+      },
+      "device_zone": {
+        "name": "Device zone"
       },
       "firmware_version": {
         "name": "Firmware version"

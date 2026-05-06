@@ -25,6 +25,9 @@ from .const import (
     ATTR_BED_TEMP,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
+    ATTR_DEVICE_CN,
+    ATTR_DEVICE_USN,
+    ATTR_DEVICE_ZONE,
     ATTR_ESTIMATE_DURATION,
     ATTR_ESTIMATE_WEIGHT,
     ATTR_FAN_SPEED,
@@ -40,6 +43,7 @@ from .const import (
     ATTR_LOADED_SLOT,
     ATTR_MATERIAL,
     ATTR_MODEL,
+    ATTR_MODEL_ID,
     ATTR_MULTI_COLOR_BOX,
     ATTR_MULTI_COLOR_BOX_HUMIDITY,
     ATTR_MULTI_COLOR_BOX_STATUS,
@@ -90,6 +94,29 @@ SENSORS = (
     AnycubicSensorDescription(key=ATTR_PRINT_STATE, translation_key="print_state"),
     AnycubicSensorDescription(key=ATTR_PRINTER_NAME, translation_key="printer_name"),
     AnycubicSensorDescription(key=ATTR_MODEL, translation_key="model"),
+    AnycubicSensorDescription(
+        key=ATTR_MODEL_ID,
+        translation_key="model_id",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_DEVICE_CN,
+        translation_key="device_cn",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_DEVICE_USN,
+        translation_key="device_usn",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_DEVICE_ZONE,
+        translation_key="device_zone",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
     AnycubicSensorDescription(
         key=ATTR_FIRMWARE_VERSION, translation_key="firmware_version"
     ),

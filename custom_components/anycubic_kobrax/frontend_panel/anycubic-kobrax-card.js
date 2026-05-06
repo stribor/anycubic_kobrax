@@ -1,3 +1,30 @@
+const ANYCUBIC_MATCH_TEXT = ["Anycubic", "Kobra X"];
+
+function anycubicEntityMatches(states) {
+  const explicit = states.filter((state) => {
+    const entityId = state.entity_id || "";
+    const name = state.attributes?.friendly_name || "";
+    return (
+      entityId.includes("anycubic_kobra_x") ||
+      ANYCUBIC_MATCH_TEXT.some((text) => name.includes(text))
+    );
+  });
+  if (explicit.length > 0) {
+    return explicit;
+  }
+
+  const printerNameState = states.find((state) => {
+    const objectId = state.entity_id?.split(".").pop()?.replaceAll("_", "") || "";
+    const name = state.attributes?.friendly_name?.toLowerCase().replaceAll(/\s+/g, "") || "";
+    return objectId.endsWith("printername") || name.endsWith("printername");
+  });
+  const objectId = printerNameState?.entity_id?.split(".").pop();
+  const prefix = objectId?.replace(/_?printer_name$/, "");
+  return prefix
+    ? states.filter((state) => state.entity_id?.split(".").pop()?.startsWith(prefix))
+    : [];
+}
+
 class AnycubicKobraXCard extends HTMLElement {
   constructor() {
     super();
@@ -30,7 +57,6 @@ class AnycubicKobraXCard extends HTMLElement {
 
   static getStubConfig() {
     return {
-      name: "Anycubic Kobra X",
       grid_options: {
         columns: 12,
         rows: "auto",
@@ -79,7 +105,7 @@ class AnycubicKobraXCard extends HTMLElement {
     const remaining = this._seconds(get("remaining_time"));
     const eta = remaining === null ? "--" : this._formatClock(Date.now() + remaining * 1000);
     const progress = this._number(get("progress"), 0);
-    const title = this._config.name || this._string(get("printer_name")) || "Anycubic Kobra X";
+    const title = this._config.name || this._string(get("printer_name")) || "Anycubic printer";
     const status = this._formatStatus(this._string(get("print_state")) || this._state(get("last_will")));
     const elapsed = this._formatDuration(this._seconds(get("total_time")), false);
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
@@ -476,11 +502,7 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _findPrinterEntities(states) {
-    const matches = states.filter((state) => {
-      const entityId = state.entity_id || "";
-      const name = state.attributes?.friendly_name || "";
-      return entityId.includes("anycubic_kobra_x") || name.includes("Anycubic Kobra X");
-    });
+    const matches = anycubicEntityMatches(states);
     const keys = [
       "light",
       "last_will",
@@ -666,7 +688,7 @@ window.customCards = window.customCards || [];
 if (!window.customCards.some((card) => card.type === "anycubic-kobrax-card")) {
   window.customCards.push({
     type: "anycubic-kobrax-card",
-    name: "Anycubic Kobra X",
+    name: "Anycubic Printer",
     description: "Printer progress, temperatures, timing, and filament slots.",
   });
 }
@@ -1027,11 +1049,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
   }
 
   _findPrinterEntities(states) {
-    const matches = states.filter((state) => {
-      const entityId = state.entity_id || "";
-      const name = state.attributes?.friendly_name || "";
-      return entityId.includes("anycubic_kobra_x") || name.includes("Anycubic Kobra X");
-    });
+    const matches = anycubicEntityMatches(states);
     return {
       camera: matches.find((state) => state.entity_id?.startsWith("camera.")),
       light: matches.find((state) => state.entity_id?.startsWith("light.")),
@@ -1103,7 +1121,7 @@ if (!customElements.get("anycubic-kobrax-camera-card")) {
 if (!window.customCards.some((card) => card.type === "anycubic-kobrax-camera-card")) {
   window.customCards.push({
     type: "anycubic-kobrax-camera-card",
-    name: "Anycubic Kobra X Camera",
+    name: "Anycubic Camera",
     description: "Start and stop the printer camera stream and control the light.",
   });
 }
@@ -1623,11 +1641,7 @@ class AnycubicKobraXAxisCard extends HTMLElement {
 
   _controlsAvailable() {
     const states = Object.values(this._hass?.states || {});
-    const matches = states.filter((state) => {
-      const entityId = state.entity_id || "";
-      const name = state.attributes?.friendly_name || "";
-      return entityId.includes("anycubic_kobra_x") || name.includes("Anycubic Kobra X");
-    });
+    const matches = anycubicEntityMatches(states);
     return matches.length > 0 && matches.some((state) => state.state !== "unavailable");
   }
 
@@ -1643,7 +1657,7 @@ if (!customElements.get("anycubic-kobrax-axis-card")) {
 if (!window.customCards.some((card) => card.type === "anycubic-kobrax-axis-card")) {
   window.customCards.push({
     type: "anycubic-kobrax-axis-card",
-    name: "Anycubic Kobra X Axis Move",
+    name: "Anycubic Axis Move",
     description: "Move and home printer axes with Home Assistant services.",
   });
 }
