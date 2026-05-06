@@ -232,7 +232,6 @@ class AnycubicKobraXCard extends HTMLElement {
     const get = (key) => this._entityFromConfig(key) || entities[key];
     const layout = this._config.layout === "compact" ? "compact" : "full";
     const remaining = this._seconds(get("remaining_time"));
-    const eta = remaining === null ? "--" : this._formatClock(Date.now() + remaining * 1000);
     const progress = this._number(get("progress"), 0);
     const title = this._config.name || this._string(get("printer_name")) || "Anycubic printer";
     const rawStatus = this._string(get("print_state")) || this._state(get("last_will"));
@@ -240,6 +239,10 @@ class AnycubicKobraXCard extends HTMLElement {
     const elapsed = this._formatDuration(this._seconds(get("total_time")), false);
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
     const isIdle = this._isIdle(rawStatus, progress, remaining);
+    const isPrinting = !isIdle;
+    const eta = isPrinting && remaining !== null
+      ? this._formatClock(Date.now() + remaining * 1000)
+      : "--";
     const previewUrl = this._config.hide_preview_when_idle && isIdle
       ? ""
       : this._previewImageUrl(get("preview_image"));
@@ -247,7 +250,7 @@ class AnycubicKobraXCard extends HTMLElement {
       ? this._config.progress_style
       : "number";
     const hideProgress = progressStyle === "hidden" || (this._config.hide_progress_when_idle && isIdle);
-    const visibleStats = this._visibleStats();
+    const visibleStats = this._visibleStats(isPrinting);
     const statsColumns = Number(this._config.stats_columns) === 2 ? 2 : 1;
     const showSlots = layout !== "compact" && this._config.show_slots !== false;
     const slotCards = showSlots ? [1, 2, 3, 4].map((slot) => this._renderSlot(slot, get)) : [];
@@ -802,11 +805,15 @@ class AnycubicKobraXCard extends HTMLElement {
     );
   }
 
-  _visibleStats() {
+  _visibleStats(isPrinting) {
     if (!Array.isArray(this._config.visible_stats)) {
-      return ANYCUBIC_DEFAULT_STATS;
+      return isPrinting
+        ? ANYCUBIC_DEFAULT_STATS
+        : ANYCUBIC_DEFAULT_STATS.filter((key) => !["eta", "remaining"].includes(key));
     }
-    return this._config.visible_stats.filter((key) => ANYCUBIC_STAT_LABELS[key]);
+    return this._config.visible_stats.filter(
+      (key) => ANYCUBIC_STAT_LABELS[key] && (isPrinting || !["eta", "remaining"].includes(key)),
+    );
   }
 
   _renderStat(key, value) {
@@ -945,10 +952,17 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _formatClock(timestamp) {
-    return new Intl.DateTimeFormat(undefined, {
+    const locale = this._hass?.locale;
+    const options = {
       hour: "2-digit",
       minute: "2-digit",
-    }).format(new Date(timestamp));
+    };
+    if (locale?.time_format === "24") {
+      options.hour12 = false;
+    } else if (locale?.time_format === "12") {
+      options.hour12 = true;
+    }
+    return new Intl.DateTimeFormat(locale?.language, options).format(new Date(timestamp));
   }
 
   _escape(value) {
