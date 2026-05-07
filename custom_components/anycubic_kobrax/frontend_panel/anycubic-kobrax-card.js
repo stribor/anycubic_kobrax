@@ -515,8 +515,18 @@ class AnycubicKobraXCard extends HTMLElement {
           width: 100%;
         }
 
-        .camera-slot hui-image {
+        .camera-image-anchor {
+          display: block;
           height: 100%;
+          inset: 0;
+          position: absolute;
+          width: 100%;
+        }
+
+        .camera-slot hui-image {
+          display: block;
+          height: 100%;
+          width: 100%;
         }
 
         .camera-warmup {
