@@ -3,18 +3,9 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-import base64
-import hashlib
-import json
-import secrets
-import string
-import time
 from typing import Any
-from uuid import uuid4
 
 from aiohttp import ClientError, ClientSession
-from cryptography.hazmat.primitives.ciphers import Cipher, algorithms, modes
-from cryptography.hazmat.primitives.padding import PKCS7
 
 from homeassistant.core import HomeAssistant
 from homeassistant.exceptions import HomeAssistantError
@@ -35,10 +26,14 @@ from .const import (
     CONF_PRINTER_ID,
     CONF_TYPE_ID,
 )
-
-CTRL_HTTP_PORT = 18910
-PROBE_TIMEOUT = 10
-_NONCE_CHARS = string.ascii_letters + string.digits
+from .lan_credentials import (
+    CTRL_HTTP_PORT,
+    PROBE_TIMEOUT,
+    InvalidLanCredentialResponse,
+    build_credential_request,
+    normalize_host,
+    parse_credential_response,
+)
 
 
 class CannotConnect(HomeAssistantError):
@@ -97,63 +92,42 @@ async def async_probe_lan_printer(
     hass: HomeAssistant, host: str
 ) -> LanProvisioningResult:
     """Fetch and decrypt LAN MQTT credentials from a printer IP."""
-    clean_host = _normalize_host(host)
+    clean_host = normalize_host(host)
     session = async_get_clientsession(hass)
     try:
         info = await _fetch_json(session, f"http://{clean_host}:{CTRL_HTTP_PORT}/info")
-        token = _require_string(info, "token")
-        if len(token) < 32:
-            raise InvalidResponse("Printer returned an invalid LAN token")
-        ctrl_url = _require_string(info, "ctrlInfoUrl")
-        did = uuid4().hex.upper()
-        ts = str(int(time.time() * 1000))
-        nonce = "".join(secrets.choice(_NONCE_CHARS) for _ in range(6))
-        sign = _md5(_md5(token[:16]) + ts + nonce)
+        request = build_credential_request(info)
         ctrl = await _fetch_json(
             session,
-            ctrl_url,
+            request.ctrl_url,
             method="POST",
-            params={
-                "ts": ts,
-                "nonce": nonce,
-                "sign": sign,
-                "did": did,
-            },
+            params=request.params,
         )
     except (ClientError, TimeoutError) as err:
         raise CannotConnect(
             f"Could not connect to Anycubic printer at {clean_host}"
         ) from err
+    except InvalidLanCredentialResponse as err:
+        raise InvalidResponse(str(err)) from err
 
-    if ctrl.get("code") != 200:
-        raise InvalidResponse(
-            f"Printer rejected LAN credential request with code {ctrl.get('code')}"
-        )
-    data = ctrl.get("data")
-    if not isinstance(data, dict):
-        raise InvalidResponse("Printer LAN credential response did not include data")
-
-    encrypted_info = _require_string(data, "info")
-    iv = _require_string(data, "token")
-    bundle = _decrypt_ctrl_info(encrypted_info, token[16:32], iv)
-
-    printer_id = _require_string(bundle, "deviceId")
-    type_id = _coerce_type_id(bundle.get("modelId") or bundle.get("modeId"))
+    try:
+        bundle = parse_credential_response(clean_host, info, ctrl, request.token)
+    except InvalidLanCredentialResponse as err:
+        raise InvalidResponse(str(err)) from err
     return LanProvisioningResult(
-        host=clean_host,
-        type_id=type_id,
-        printer_id=printer_id,
-        username=_require_string(bundle, "username"),
-        password=_require_string(bundle, "password"),
-        device_cert=_require_string(bundle, "devicecrt"),
-        device_key=_require_string(bundle, "devicepk"),
-        device_uuid=_optional_string(info.get("usn")),
-        device_name=_optional_string(info.get("deviceName")),
-        model_name=_optional_string(bundle.get("modelName"))
-        or _optional_string(info.get("modelName")),
-        device_cn=_optional_string(info.get("cn")),
-        device_usn=_optional_string(info.get("usn")),
-        device_zone=_optional_string(info.get("zone")),
+        host=bundle.host,
+        type_id=bundle.type_id,
+        printer_id=bundle.printer_id,
+        username=bundle.username,
+        password=bundle.password,
+        device_cert=bundle.device_cert,
+        device_key=bundle.device_key,
+        device_uuid=bundle.device_uuid,
+        device_name=bundle.device_name,
+        model_name=bundle.model_name,
+        device_cn=bundle.device_cn,
+        device_usn=bundle.device_usn,
+        device_zone=bundle.device_zone,
     )
 
 
@@ -173,65 +147,3 @@ async def _fetch_json(
     if not isinstance(payload, dict):
         raise InvalidResponse("Printer returned non-object JSON")
     return payload
-
-
-def _decrypt_ctrl_info(encrypted_info: str, key: str, iv: str) -> dict[str, Any]:
-    """Decrypt the AES-CBC LAN credential bundle."""
-    if len(key.encode()) != 16 or len(iv.encode()) != 16:
-        raise InvalidResponse("Printer returned invalid LAN credential crypto material")
-    try:
-        decryptor = Cipher(
-            algorithms.AES(key.encode()),
-            modes.CBC(iv.encode()),
-        ).decryptor()
-        padded = (
-            decryptor.update(base64.b64decode(encrypted_info))
-            + decryptor.finalize()
-        )
-        unpadder = PKCS7(128).unpadder()
-        plaintext = unpadder.update(padded) + unpadder.finalize()
-        bundle = json.loads(plaintext.decode())
-    except (ValueError, json.JSONDecodeError) as err:
-        raise InvalidResponse("Could not decrypt printer LAN credential bundle") from err
-    if not isinstance(bundle, dict):
-        raise InvalidResponse("Printer LAN credential bundle was not an object")
-    return bundle
-
-
-def _normalize_host(host: str) -> str:
-    """Return a bare host from user input."""
-    host = host.strip()
-    if host.startswith(("http://", "https://")):
-        host = host.split("://", maxsplit=1)[1]
-    host = host.split("/", maxsplit=1)[0]
-    return host.split(":", maxsplit=1)[0]
-
-
-def _require_string(data: dict[str, Any], key: str) -> str:
-    """Return a required string field."""
-    value = data.get(key)
-    if not isinstance(value, str) or not value:
-        raise InvalidResponse(f"Printer response did not include {key}")
-    return value
-
-
-def _optional_string(value: Any) -> str | None:
-    """Return a non-empty string representation for optional metadata."""
-    if isinstance(value, str):
-        return value or None
-    if isinstance(value, int):
-        return str(value)
-    return None
-
-
-def _coerce_type_id(value: Any) -> int:
-    """Return the printer model/type ID as an integer."""
-    try:
-        return int(value)
-    except (TypeError, ValueError) as err:
-        raise InvalidResponse("Printer response did not include modelId") from err
-
-
-def _md5(value: str) -> str:
-    """Return lowercase MD5 hex digest."""
-    return hashlib.md5(value.encode()).hexdigest()

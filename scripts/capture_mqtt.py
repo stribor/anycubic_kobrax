@@ -6,6 +6,7 @@ from __future__ import annotations
 import argparse
 from collections.abc import Mapping
 from datetime import datetime, timezone
+import importlib.util
 import json
 import os
 from pathlib import Path
@@ -16,7 +17,33 @@ import tempfile
 import threading
 import time
 from typing import Any
+from urllib.error import HTTPError, URLError
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 from uuid import uuid4
+
+REPO_ROOT = Path(__file__).resolve().parents[1]
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+
+_LAN_CREDENTIALS_PATH = (
+    REPO_ROOT / "custom_components" / "anycubic_kobrax" / "lan_credentials.py"
+)
+_LAN_CREDENTIALS_SPEC = importlib.util.spec_from_file_location(
+    "anycubic_kobrax_lan_credentials", _LAN_CREDENTIALS_PATH
+)
+if _LAN_CREDENTIALS_SPEC is None or _LAN_CREDENTIALS_SPEC.loader is None:
+    raise RuntimeError(f"Could not load {_LAN_CREDENTIALS_PATH}")
+lan_credentials = importlib.util.module_from_spec(_LAN_CREDENTIALS_SPEC)
+sys.modules[_LAN_CREDENTIALS_SPEC.name] = lan_credentials
+_LAN_CREDENTIALS_SPEC.loader.exec_module(lan_credentials)
+
+CTRL_HTTP_PORT = lan_credentials.CTRL_HTTP_PORT
+PROBE_TIMEOUT = lan_credentials.PROBE_TIMEOUT
+InvalidLanCredentialResponse = lan_credentials.InvalidLanCredentialResponse
+build_credential_request = lan_credentials.build_credential_request
+normalize_host = lan_credentials.normalize_host
+parse_credential_response = lan_credentials.parse_credential_response
 
 
 DEFAULT_PORT = 9883
@@ -85,6 +112,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--client-id",
         help="MQTT client id. Defaults to a generated kobrax_capture_* id.",
+    )
+    parser.add_argument(
+        "--no-discover",
+        action="store_true",
+        help="Do not fetch LAN MQTT credentials from the printer when credentials are missing.",
     )
     parser.add_argument(
         "--no-redact",
@@ -185,6 +217,45 @@ def decode_payload(payload: bytes) -> tuple[Any, str]:
         return text, text
 
 
+def discover_credentials(host: str) -> dict[str, Any]:
+    clean_host = normalize_host(host)
+    info = fetch_json(f"http://{clean_host}:{CTRL_HTTP_PORT}/info")
+    credential_request = build_credential_request(info)
+    ctrl = fetch_json(
+        credential_request.ctrl_url,
+        method="POST",
+        params=credential_request.params,
+    )
+    bundle = parse_credential_response(
+        clean_host, info, ctrl, credential_request.token
+    )
+    return {
+        "host": bundle.host,
+        "type_id": bundle.type_id,
+        "printer_id": bundle.printer_id,
+        "mqtt_username": bundle.username,
+        "mqtt_password": bundle.password,
+        "device_cert": bundle.device_cert,
+        "device_key": bundle.device_key,
+        "device_name": bundle.device_name,
+        "model_name": bundle.model_name,
+    }
+
+
+def fetch_json(
+    url: str, *, method: str = "GET", params: dict[str, str] | None = None
+) -> dict[str, Any]:
+    if params:
+        separator = "&" if "?" in url else "?"
+        url = f"{url}{separator}{urlencode(params)}"
+    request = Request(url, method=method)
+    with urlopen(request, timeout=PROBE_TIMEOUT) as response:
+        payload = json.loads(response.read().decode("utf-8"))
+    if not isinstance(payload, dict):
+        raise InvalidLanCredentialResponse("Printer returned non-object JSON")
+    return payload
+
+
 def build_client(
     *,
     client_id: str,
@@ -275,6 +346,22 @@ def main() -> int:
     cert = config_value(args, config, "cert", "client_cert", "cert", "device_cert")
     key = config_value(args, config, "key", "client_key", "key", "device_key")
     topics = args.topic or [DEFAULT_TOPIC]
+
+    if host and not args.no_discover and not (username and password and cert and key):
+        try:
+            print(f"Discovering LAN MQTT credentials from {host}", file=sys.stderr)
+            discovered = discover_credentials(str(host))
+        except (HTTPError, URLError, TimeoutError, InvalidLanCredentialResponse) as err:
+            print(f"Could not discover LAN MQTT credentials: {err}", file=sys.stderr)
+        else:
+            host = discovered.get("host") or host
+            username = username or discovered.get("mqtt_username")
+            password = password or discovered.get("mqtt_password")
+            cert = cert or discovered.get("device_cert")
+            key = key or discovered.get("device_key")
+            device_label = discovered.get("device_name") or discovered.get("model_name")
+            if device_label:
+                print(f"Discovered credentials for {device_label}", file=sys.stderr)
 
     missing = [
         name

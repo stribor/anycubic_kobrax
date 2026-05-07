@@ -164,14 +164,16 @@ because they may contain printer identifiers, stream tokens, and file names:
 
 ```bash
 python3 scripts/capture_mqtt.py \
-  --config .local/anycubic_kobrax.dev.yaml \
+  --host 192.168.1.100 \
   --output .local/mqtt-capture.jsonl
 ```
 
-The script accepts command-line overrides for `--host`, `--username`,
+With only `--host`, the script uses the same LAN credential discovery flow as
+the integration. It accepts command-line overrides for `--config`, `--username`,
 `--password`, `--cert`, `--key`, `--topic`, `--count`, and `--duration`. It
 writes one JSON object per MQTT message and redacts sensitive-looking fields and
-large embedded images by default.
+large embedded images by default. Use `--no-discover` to require explicit MQTT
+credentials from the config file or command line.
 
 ## Still to improve
 
