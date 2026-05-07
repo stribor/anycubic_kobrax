@@ -1461,15 +1461,10 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     const isWarming = this._busy || Date.now() < this._streamWarmupUntil;
     const lightIsOn = lightState?.state === "on";
     const title = this._config.name || "Camera";
-    const streamLabel = isWarming
-      ? "Starting"
-      : isStreaming && !this._viewerEnabled
-      ? "View"
-      : isStreaming
-      ? "Stop"
-      : "Start";
     const streamTitle = cameraUnavailable
       ? "Camera unavailable"
+      : isWarming
+      ? "Starting stream"
       : isStreaming && !this._viewerEnabled
       ? "Show stream on this device"
       : isStreaming
@@ -1535,6 +1530,14 @@ class AnycubicKobraXCameraCard extends HTMLElement {
           line-height: 1.2;
         }
 
+        .header-actions {
+          align-items: center;
+          display: flex;
+          flex: 0 0 auto;
+          gap: 4px;
+          justify-content: flex-end;
+        }
+
         .viewer {
           align-items: center;
           aspect-ratio: 16 / 9;
@@ -1544,7 +1547,6 @@ class AnycubicKobraXCameraCard extends HTMLElement {
           border-radius: 8px;
           display: flex;
           justify-content: center;
-          margin-bottom: 14px;
           overflow: hidden;
           position: relative;
           width: 100%;
@@ -1585,64 +1587,45 @@ class AnycubicKobraXCameraCard extends HTMLElement {
           width: 44px;
         }
 
-        .actions {
-          display: grid;
-          gap: 10px;
-          grid-template-columns: minmax(0, 1fr) 48px;
-        }
-
-        button {
+        button.icon {
           align-items: center;
-          background: var(--secondary-background-color);
-          border: var(--ha-card-border-width, 1px) solid
-            var(--ha-card-border-color, var(--divider-color, transparent));
-          border-radius: 8px;
-          color: var(--primary-text-color);
+          background: none;
+          border: 0;
+          color: var(--state-icon-color, var(--secondary-text-color));
           cursor: pointer;
           display: inline-flex;
-          font: inherit;
-          font-weight: 500;
-          gap: 8px;
+          height: 32px;
           justify-content: center;
-          min-height: 46px;
-          min-width: 0;
-          padding: 0 14px;
+          opacity: 0.95;
+          padding: 0;
+          position: relative;
           transition:
             background-color 120ms ease,
-            border-color 120ms ease,
             color 120ms ease,
             transform 120ms ease;
+          width: 32px;
         }
 
-        button.primary {
-          background: var(--accent-color);
-          border-color: var(--accent-color);
-          color: var(--text-primary-color, #fff);
-        }
-
-        button.icon {
-          padding: 0;
-        }
-
-        button.active {
+        button.icon.active {
           color: var(--state-light-active-color, var(--accent-color));
         }
 
-        button:not([disabled]):hover {
-          border-color: var(--accent-color);
-          filter: brightness(1.04);
+        button.icon:not([disabled]):hover {
+          background: var(--state-hover-color, rgba(128, 128, 128, 0.16));
+          border-radius: 50%;
         }
 
-        button:not([disabled]):focus-visible {
+        button.icon:not([disabled]):focus-visible {
+          border-radius: 50%;
           outline: 2px solid var(--accent-color);
           outline-offset: 3px;
         }
 
-        button:not([disabled]):active {
-          transform: scale(0.97);
+        button.icon:not([disabled]):active {
+          transform: scale(0.94);
         }
 
-        button[disabled] {
+        button.icon[disabled] {
           cursor: default;
           opacity: 0.45;
         }
@@ -1653,7 +1636,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
         }
 
         @media (prefers-reduced-motion: reduce) {
-          button {
+          button.icon {
             transition: none;
           }
         }
@@ -1671,16 +1654,33 @@ class AnycubicKobraXCameraCard extends HTMLElement {
             font-size: 1.45rem;
           }
 
-          .viewer {
-            margin-bottom: 18px;
-          }
         }
       </style>
 
       <ha-card>
         <header class="header">
           <h2 class="title">${this._escape(title)}</h2>
-          <div class="state">${this._escape(this._formatState(cameraState))}</div>
+          <div class="header-actions">
+            <div class="state">${this._escape(this._formatState(cameraState))}</div>
+            <button
+              type="button"
+              class="icon stream ${isStreaming && this._viewerEnabled ? "active" : ""}"
+              title="${this._escapeAttribute(streamTitle)}"
+              aria-label="${this._escapeAttribute(streamTitle)}"
+              ${cameraUnavailable || isWarming ? "disabled" : ""}
+            >
+              <ha-icon icon="${isStreaming && this._viewerEnabled ? "mdi:stop" : isStreaming ? "mdi:eye" : "mdi:play"}"></ha-icon>
+            </button>
+            <button
+              type="button"
+              class="icon light ${lightIsOn ? "active" : ""}"
+              title="${this._escapeAttribute(lightTitle)}"
+              aria-label="${this._escapeAttribute(lightTitle)}"
+              ${lightUnavailable ? "disabled" : ""}
+            >
+              <ha-icon icon="${lightIsOn ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}"></ha-icon>
+            </button>
+          </div>
         </header>
 
         <div class="viewer">
@@ -1695,26 +1695,6 @@ class AnycubicKobraXCameraCard extends HTMLElement {
           ` : ""}
         </div>
 
-        <div class="actions">
-          <button
-            type="button"
-            class="stream ${isStreaming && this._viewerEnabled ? "" : "primary"}"
-            title="${this._escapeAttribute(streamTitle)}"
-            ${cameraUnavailable || isWarming ? "disabled" : ""}
-          >
-            <ha-icon icon="${isStreaming && this._viewerEnabled ? "mdi:stop" : isStreaming ? "mdi:eye" : "mdi:play"}"></ha-icon>
-            <span>${this._escape(streamLabel)}</span>
-          </button>
-          <button
-            type="button"
-            class="icon light ${lightIsOn ? "active" : ""}"
-            title="${this._escapeAttribute(lightTitle)}"
-            aria-label="${this._escapeAttribute(lightTitle)}"
-            ${lightUnavailable ? "disabled" : ""}
-          >
-            <ha-icon icon="${lightIsOn ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}"></ha-icon>
-          </button>
-        </div>
       </ha-card>
     `;
 
