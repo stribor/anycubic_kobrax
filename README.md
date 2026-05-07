@@ -163,6 +163,13 @@ printer, camera controls, and Anycubic slicer. Keep raw captures in `.local/`
 because they may contain printer identifiers, stream tokens, and file names:
 
 ```bash
+python3 -m venv .venv
+source .venv/bin/activate
+python -m pip install --upgrade pip
+python -m pip install -r requirements.txt
+```
+
+```bash
 python3 scripts/capture_mqtt.py \
   --host 192.168.1.100 \
   --output .local/mqtt-capture.jsonl
