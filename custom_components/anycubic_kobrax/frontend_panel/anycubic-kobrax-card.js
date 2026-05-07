@@ -86,6 +86,9 @@ class AnycubicKobraXCard extends HTMLElement {
 
   set hass(hass) {
     this._hass = hass;
+    if (this._updateStreamingView()) {
+      return;
+    }
     this._render();
   }
 
@@ -908,12 +911,12 @@ class AnycubicKobraXCard extends HTMLElement {
 
     const lightButton = this.shadowRoot.querySelector(".light-toggle");
     if (lightButton && !lightUnavailable) {
-      lightButton.addEventListener("click", () => this._toggleLight(lightState));
+      lightButton.addEventListener("click", () => this._toggleLight(this._matchedEntity("light_entity", "light")));
     }
 
     const cameraButton = this.shadowRoot.querySelector(".camera-toggle");
     if (cameraButton && showCamera && !this._cameraBusy) {
-      cameraButton.addEventListener("click", () => this._toggleCamera(cameraState));
+      cameraButton.addEventListener("click", () => this._toggleCamera(this._matchedEntity("camera_entity", "camera")));
     }
 
     const cameraAnchor = this.shadowRoot.querySelector(".camera-image-anchor");
@@ -929,6 +932,71 @@ class AnycubicKobraXCard extends HTMLElement {
   _entityFromConfig(key) {
     const entityId = this._config.entities?.[key] || this._config[key];
     return entityId ? this._hass.states[entityId] : undefined;
+  }
+
+  _matchedEntity(configKey, matchKey) {
+    const states = Object.values(this._hass?.states || {});
+    const entities = this._findPrinterEntities(states);
+    return this._entityFromConfig(configKey) || entities[matchKey];
+  }
+
+  _updateStreamingView() {
+    if (this._config.media_view !== "camera") {
+      return false;
+    }
+    const image = this.shadowRoot.querySelector(".camera-image-anchor hui-image");
+    if (!image) {
+      return false;
+    }
+    const cameraState = this._matchedEntity("camera_entity", "camera");
+    if (!cameraState || cameraState.state !== "streaming") {
+      return false;
+    }
+    this._configureImage(image, cameraState);
+    this._updateCameraButton(cameraState);
+    this._updateLightButton(this._matchedEntity("light_entity", "light"));
+    if (!this._cameraBusy) {
+      this.shadowRoot.querySelector(".camera-warmup")?.remove();
+    }
+    return true;
+  }
+
+  _updateCameraButton(cameraState) {
+    const button = this.shadowRoot.querySelector(".camera-toggle");
+    if (!button) {
+      return;
+    }
+    const cameraUnavailable = !cameraState || this._isUnavailable(cameraState);
+    const cameraIsStreaming = cameraState?.state === "streaming";
+    const title = cameraUnavailable
+      ? "Camera unavailable"
+      : cameraIsStreaming
+      ? "Stop camera stream"
+      : "Start camera stream";
+    button.classList.toggle("active", cameraIsStreaming);
+    button.disabled = cameraUnavailable || this._cameraBusy;
+    button.title = title;
+    button.setAttribute("aria-label", title);
+    const icon = button.querySelector("ha-icon");
+    if (icon) {
+      icon.setAttribute("icon", cameraIsStreaming ? "mdi:stop" : "mdi:play");
+    }
+  }
+
+  _updateLightButton(lightState) {
+    const button = this.shadowRoot.querySelector(".light-toggle");
+    if (!button) {
+      return;
+    }
+    const lightUnavailable = !lightState || this._isUnavailable(lightState);
+    const lightIsOn = lightState?.state === "on";
+    const title = lightUnavailable
+      ? "Printer light unavailable"
+      : `Turn ${lightIsOn ? "off" : "on"} printer light`;
+    button.classList.toggle("active", lightIsOn);
+    button.disabled = lightUnavailable;
+    button.title = title;
+    button.setAttribute("aria-label", title);
   }
 
   _findPrinterEntities(states) {
