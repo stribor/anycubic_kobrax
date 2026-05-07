@@ -76,6 +76,7 @@ class AnycubicKobraXCard extends HTMLElement {
     this._config = {};
     this._hass = undefined;
     this._cameraBusy = false;
+    this._cameraImage = undefined;
   }
 
   setConfig(config) {
@@ -323,6 +324,10 @@ class AnycubicKobraXCard extends HTMLElement {
       : lightState
       ? `Turn ${lightIsOn ? "off" : "on"} printer light`
       : "Printer light entity not found";
+    const reusableCameraImage = this._cameraImage;
+    if (reusableCameraImage?.isConnected) {
+      reusableCameraImage.remove();
+    }
     this.shadowRoot.innerHTML = `
       <style>
         *, *::before, *::after {
@@ -864,7 +869,7 @@ class AnycubicKobraXCard extends HTMLElement {
               <div class="media camera-media">
                 ${cameraIsStreaming ? `
                   <div class="camera-slot">
-                    <hui-image></hui-image>
+                    <div class="camera-image-anchor"></div>
                     ${this._cameraBusy ? `<div class="camera-warmup">Starting stream</div>` : ""}
                   </div>
                 ` : `
@@ -901,9 +906,13 @@ class AnycubicKobraXCard extends HTMLElement {
       cameraButton.addEventListener("click", () => this._toggleCamera(cameraState));
     }
 
-    const cameraImage = this.shadowRoot.querySelector(".camera-slot hui-image");
-    if (cameraImage && cameraState) {
-      this._configureImage(cameraImage, cameraState);
+    const cameraAnchor = this.shadowRoot.querySelector(".camera-image-anchor");
+    if (cameraAnchor && cameraState) {
+      if (!this._cameraImage) {
+        this._cameraImage = document.createElement("hui-image");
+      }
+      cameraAnchor.appendChild(this._cameraImage);
+      this._configureImage(this._cameraImage, cameraState);
     }
   }
 
