@@ -77,6 +77,7 @@ class AnycubicKobraXCard extends HTMLElement {
     this._hass = undefined;
     this._cameraBusy = false;
     this._cameraImage = undefined;
+    this._cameraViewerEnabled = false;
     this._lastRenderSignature = "";
   }
 
@@ -281,8 +282,14 @@ class AnycubicKobraXCard extends HTMLElement {
       : "";
     const showCamera = mediaView === "camera" && cameraState && !this._isUnavailable(cameraState);
     const cameraIsStreaming = showCamera && cameraState.state === "streaming";
+    if (!cameraIsStreaming) {
+      this._cameraViewerEnabled = false;
+    }
+    const showCameraStream = cameraIsStreaming && this._cameraViewerEnabled;
     const cameraTitle = !showCamera
       ? "Camera unavailable"
+      : cameraIsStreaming && !this._cameraViewerEnabled
+      ? "Show stream on this device"
       : cameraIsStreaming
       ? "Stop camera stream"
       : "Start camera stream";
@@ -330,6 +337,7 @@ class AnycubicKobraXCard extends HTMLElement {
       cameraBusy: this._cameraBusy,
       cameraEntity: cameraState?.entity_id || "",
       cameraIsStreaming,
+      cameraViewerEnabled: this._cameraViewerEnabled,
       compactMeta,
       eta,
       hasMedia,
@@ -879,7 +887,7 @@ class AnycubicKobraXCard extends HTMLElement {
                   ${!showCamera || this._cameraBusy ? "disabled" : ""}
                   aria-label="${this._escapeAttribute(cameraTitle)}"
                 >
-                  <ha-icon icon="${cameraIsStreaming ? "mdi:stop" : "mdi:play"}"></ha-icon>
+                  <ha-icon icon="${cameraIsStreaming && this._cameraViewerEnabled ? "mdi:stop" : cameraIsStreaming ? "mdi:eye" : "mdi:play"}"></ha-icon>
                 </button>
               ` : ""}
               <button
@@ -907,7 +915,7 @@ class AnycubicKobraXCard extends HTMLElement {
             ` : ""}
             ${showCamera ? `
               <div class="media camera-media">
-                ${cameraIsStreaming ? `
+                ${showCameraStream ? `
                   <div class="camera-slot">
                     <hui-image></hui-image>
                     ${this._cameraBusy ? `<div class="camera-warmup">Starting stream</div>` : ""}
@@ -915,7 +923,7 @@ class AnycubicKobraXCard extends HTMLElement {
                 ` : `
                   <div class="camera-placeholder">
                     <ha-icon icon="mdi:video-outline"></ha-icon>
-                    <div>${this._escape(this._cameraBusy ? "Starting stream" : "Camera stopped")}</div>
+                    <div>${this._escape(this._cameraBusy ? "Starting stream" : cameraIsStreaming ? "Stream active" : "Camera stopped")}</div>
                   </div>
                 `}
               </div>
@@ -972,6 +980,9 @@ class AnycubicKobraXCard extends HTMLElement {
     if (this._config.media_view !== "camera") {
       return false;
     }
+    if (!this._cameraViewerEnabled) {
+      return false;
+    }
     const image = this.shadowRoot.querySelector(".camera-slot hui-image");
     if (!image) {
       return false;
@@ -996,8 +1007,13 @@ class AnycubicKobraXCard extends HTMLElement {
     }
     const cameraUnavailable = !cameraState || this._isUnavailable(cameraState);
     const cameraIsStreaming = cameraState?.state === "streaming";
+    if (!cameraIsStreaming) {
+      this._cameraViewerEnabled = false;
+    }
     const title = cameraUnavailable
       ? "Camera unavailable"
+      : cameraIsStreaming && !this._cameraViewerEnabled
+      ? "Show stream on this device"
       : cameraIsStreaming
       ? "Stop camera stream"
       : "Start camera stream";
@@ -1007,7 +1023,7 @@ class AnycubicKobraXCard extends HTMLElement {
     button.setAttribute("aria-label", title);
     const icon = button.querySelector("ha-icon");
     if (icon) {
-      icon.setAttribute("icon", cameraIsStreaming ? "mdi:stop" : "mdi:play");
+      icon.setAttribute("icon", cameraIsStreaming && this._cameraViewerEnabled ? "mdi:stop" : cameraIsStreaming ? "mdi:eye" : "mdi:play");
     }
   }
 
@@ -1086,7 +1102,15 @@ class AnycubicKobraXCard extends HTMLElement {
     if (!cameraState || this._isUnavailable(cameraState)) {
       return;
     }
+    if (cameraState.state === "streaming" && !this._cameraViewerEnabled) {
+      this._cameraViewerEnabled = true;
+      this._render();
+      return;
+    }
     this._cameraBusy = true;
+    if (cameraState.state !== "streaming") {
+      this._cameraViewerEnabled = true;
+    }
     this._render();
     try {
       await this._hass.callService(
@@ -1097,6 +1121,9 @@ class AnycubicKobraXCard extends HTMLElement {
     } finally {
       window.setTimeout(() => {
         this._cameraBusy = false;
+        if (cameraState.state === "streaming") {
+          this._cameraViewerEnabled = false;
+        }
         this._render();
       }, cameraState.state === "streaming" ? 0 : 5000);
     }
@@ -1353,6 +1380,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     this._hass = undefined;
     this._busy = false;
     this._streamWarmupUntil = 0;
+    this._viewerEnabled = false;
   }
 
   setConfig(config) {
@@ -1426,16 +1454,24 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     const cameraUnavailable = !cameraState || this._isUnavailable(cameraState);
     const lightUnavailable = !lightState || this._isUnavailable(lightState);
     const isStreaming = cameraState?.state === "streaming";
+    if (!isStreaming) {
+      this._viewerEnabled = false;
+    }
+    const showStream = isStreaming && this._viewerEnabled;
     const isWarming = this._busy || Date.now() < this._streamWarmupUntil;
     const lightIsOn = lightState?.state === "on";
     const title = this._config.name || "Camera";
     const streamLabel = isWarming
       ? "Starting"
+      : isStreaming && !this._viewerEnabled
+      ? "View"
       : isStreaming
       ? "Stop"
       : "Start";
     const streamTitle = cameraUnavailable
       ? "Camera unavailable"
+      : isStreaming && !this._viewerEnabled
+      ? "Show stream on this device"
       : isStreaming
       ? "Stop camera stream"
       : "Start camera stream";
@@ -1648,13 +1684,13 @@ class AnycubicKobraXCameraCard extends HTMLElement {
         </header>
 
         <div class="viewer">
-          ${cameraState && isStreaming ? "<hui-image></hui-image>" : `
+          ${cameraState && showStream ? "<hui-image></hui-image>" : `
             <div class="placeholder">
               <ha-icon icon="mdi:video-outline"></ha-icon>
-              <div>${this._escape(cameraUnavailable ? "Camera unavailable" : isWarming ? "Starting stream" : "Stream stopped")}</div>
+              <div>${this._escape(cameraUnavailable ? "Camera unavailable" : isWarming ? "Starting stream" : isStreaming ? "Stream active" : "Stream stopped")}</div>
             </div>
           `}
-          ${cameraState && isStreaming && isWarming ? `
+          ${cameraState && showStream && isWarming ? `
             <div class="warmup">Starting stream</div>
           ` : ""}
         </div>
@@ -1662,11 +1698,11 @@ class AnycubicKobraXCameraCard extends HTMLElement {
         <div class="actions">
           <button
             type="button"
-            class="stream ${isStreaming ? "" : "primary"}"
+            class="stream ${isStreaming && this._viewerEnabled ? "" : "primary"}"
             title="${this._escapeAttribute(streamTitle)}"
             ${cameraUnavailable || isWarming ? "disabled" : ""}
           >
-            <ha-icon icon="${isStreaming ? "mdi:stop" : "mdi:play"}"></ha-icon>
+            <ha-icon icon="${isStreaming && this._viewerEnabled ? "mdi:stop" : isStreaming ? "mdi:eye" : "mdi:play"}"></ha-icon>
             <span>${this._escape(streamLabel)}</span>
           </button>
           <button
@@ -1717,6 +1753,9 @@ class AnycubicKobraXCameraCard extends HTMLElement {
   _updateStreamingView() {
     const image = this.shadowRoot.querySelector("hui-image");
     if (!image) {
+      return false;
+    }
+    if (!this._viewerEnabled) {
       return false;
     }
     const cameraState = this._cameraState();
@@ -1775,8 +1814,14 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     if (!cameraState || this._isUnavailable(cameraState)) {
       return;
     }
+    if (cameraState.state === "streaming" && !this._viewerEnabled) {
+      this._viewerEnabled = true;
+      this._render();
+      return;
+    }
     this._busy = true;
     if (cameraState.state !== "streaming") {
+      this._viewerEnabled = true;
       this._streamWarmupUntil = Date.now() + 7000;
       window.setTimeout(() => {
         this._streamWarmupUntil = 0;
@@ -1793,6 +1838,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     } finally {
       this._busy = false;
       if (cameraState.state === "streaming") {
+        this._viewerEnabled = false;
         this._streamWarmupUntil = 0;
       }
       this._render();
