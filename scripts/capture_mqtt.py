@@ -63,7 +63,8 @@ SENSITIVE_KEYS = {
     "token",
     "username",
 }
-LARGE_KEYS = {"png_image", "thumbnail", "image", "preview"}
+IMAGE_KEYS = {"png_image", "svg_image", "thumbnail"}
+LARGE_KEYS = {*IMAGE_KEYS, "image", "preview"}
 MAX_STRING_LENGTH = 500
 
 
@@ -122,6 +123,11 @@ def parse_args() -> argparse.Namespace:
         "--no-redact",
         action="store_true",
         help="Write payloads without redacting sensitive-looking fields.",
+    )
+    parser.add_argument(
+        "--keep-images",
+        action="store_true",
+        help="Keep file preview image payloads while still redacting credentials and tokens.",
     )
     parser.add_argument(
         "--raw-payload",
@@ -190,20 +196,22 @@ def config_value(
     return default
 
 
-def redact(value: Any) -> Any:
+def redact(value: Any, *, keep_images: bool = False) -> Any:
     if isinstance(value, dict):
         redacted: dict[str, Any] = {}
         for key, child in value.items():
             normalized = str(key).lower().replace("-", "_")
             if normalized in SENSITIVE_KEYS:
                 redacted[key] = "<redacted>"
+            elif keep_images and normalized in IMAGE_KEYS:
+                redacted[key] = child
             elif normalized in LARGE_KEYS and isinstance(child, str):
                 redacted[key] = f"<redacted {len(child)} chars>"
             else:
-                redacted[key] = redact(child)
+                redacted[key] = redact(child, keep_images=keep_images)
         return redacted
     if isinstance(value, list):
-        return [redact(child) for child in value]
+        return [redact(child, keep_images=keep_images) for child in value]
     if isinstance(value, str) and len(value) > MAX_STRING_LENGTH:
         return f"{value[:MAX_STRING_LENGTH]}...<truncated {len(value)} chars>"
     return value
@@ -443,7 +451,7 @@ def main() -> int:
         nonlocal message_count
         payload, raw_text = decode_payload(message.payload)
         if not args.no_redact:
-            payload = redact(payload)
+            payload = redact(payload, keep_images=args.keep_images)
 
         record: dict[str, Any] = {
             "received_at": datetime.now(timezone.utc).isoformat(),

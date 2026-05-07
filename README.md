@@ -172,6 +172,7 @@ python -m pip install -r requirements.txt
 ```bash
 python3 scripts/capture_mqtt.py \
   --host 192.168.1.100 \
+  --keep-images \
   --output .local/mqtt-capture.jsonl
 ```
 
@@ -179,8 +180,16 @@ With only `--host`, the script uses the same LAN credential discovery flow as
 the integration. It accepts command-line overrides for `--config`, `--username`,
 `--password`, `--cert`, `--key`, `--topic`, `--count`, and `--duration`. It
 writes one JSON object per MQTT message and redacts sensitive-looking fields and
-large embedded images by default. Use `--no-discover` to require explicit MQTT
-credentials from the config file or command line.
+large embedded images by default. Use `--keep-images` to keep `png_image`,
+`svg_image`, and `thumbnail` file preview fields while still redacting
+credentials and tokens. Use `--no-discover` to require explicit MQTT credentials
+from the config file or command line.
+
+Extract captured file preview images with:
+
+```bash
+python3 scripts/extract_mqtt_images.py .local/mqtt-capture.jsonl
+```
 
 ## Still to improve
 
