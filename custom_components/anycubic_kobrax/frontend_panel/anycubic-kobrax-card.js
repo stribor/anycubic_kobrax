@@ -185,6 +185,7 @@ class AnycubicKobraXCard extends HTMLElement {
             select: {
               multiple: true,
               mode: "list",
+              reorder: true,
               options: Object.entries(ANYCUBIC_STAT_LABELS).map(([value, label]) => ({
                 value,
                 label,
@@ -268,6 +269,7 @@ class AnycubicKobraXCard extends HTMLElement {
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
     const isIdle = this._isIdle(rawStatus, progress, remaining);
     const isPrinting = !isIdle;
+    const isPaused = this._isPaused(rawStatus);
     const eta = isPrinting && remaining !== null
       ? this._formatClock(Date.now() + remaining * 1000)
       : "--";
@@ -322,6 +324,11 @@ class AnycubicKobraXCard extends HTMLElement {
       : progressStyle === "bar"
       ? this._renderProgressBar(progress)
       : `<div class="progress-number">${this._escape(this._formatPercent(progress))}</div>`;
+    const pauseButton = isPaused ? get("resume_print") : get("pause_print");
+    const stopButton = get("stop_print");
+    const printControlsHtml = isPrinting && !hideProgress
+      ? this._renderPrintControls(pauseButton, stopButton, isPaused)
+      : "";
     const compactMeta = isIdle
       ? status
       : `${this._formatPercent(progress)} / ${this._formatDuration(remaining, false)}`;
@@ -344,6 +351,7 @@ class AnycubicKobraXCard extends HTMLElement {
       hideProgress,
       imageUrl,
       isIdle,
+      isPaused,
       layout,
       lightEntity: lightState?.entity_id || "",
       lightIsOn,
@@ -351,6 +359,7 @@ class AnycubicKobraXCard extends HTMLElement {
       mediaView,
       previewUrl,
       progress: this._formatPercent(progress),
+      printControlsHtml,
       progressStyle,
       rawStatus,
       remaining: this._formatDuration(remaining, false),
@@ -406,7 +415,7 @@ class AnycubicKobraXCard extends HTMLElement {
         .top {
           align-items: center;
           display: grid;
-          grid-template-columns: 32px minmax(0, 1fr) auto;
+          grid-template-columns: minmax(0, 1fr) auto;
           gap: 12px;
           margin-bottom: 14px;
         }
@@ -417,10 +426,9 @@ class AnycubicKobraXCard extends HTMLElement {
           font-family: var(--ha-font-family-heading, inherit);
           font-size: 1.25rem;
           font-weight: 500;
-          justify-content: center;
+          justify-content: flex-start;
           line-height: 1.1;
           min-width: 0;
-          text-align: center;
         }
 
         .title-text {
@@ -606,6 +614,27 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .progress-bar-wrap {
           margin-bottom: 14px;
+        }
+
+        .progress-section {
+          align-items: center;
+          display: flex;
+          gap: 10px;
+          margin-bottom: 14px;
+        }
+
+        .progress-section .progress-number,
+        .progress-section .progress-bar-wrap {
+          flex: 1 1 auto;
+          margin-bottom: 0;
+          min-width: 0;
+        }
+
+        .print-actions {
+          align-items: center;
+          display: flex;
+          flex: 0 0 auto;
+          gap: 4px;
         }
 
         .progress-bar-top {
@@ -794,7 +823,7 @@ class AnycubicKobraXCard extends HTMLElement {
           }
 
           .top {
-            grid-template-columns: 40px minmax(0, 1fr) 40px;
+            grid-template-columns: minmax(0, 1fr) auto;
             gap: 14px;
             margin-bottom: 20px;
           }
@@ -873,7 +902,6 @@ class AnycubicKobraXCard extends HTMLElement {
       <ha-card class="${layout}">
         ${showHeader ? `
           <header class="top">
-            <span class="icon" title="Power">${this._powerIcon()}</span>
             <div class="title">
               <span class="dot"></span>
               <span class="title-text">${this._escape(title)}</span>
@@ -930,7 +958,12 @@ class AnycubicKobraXCard extends HTMLElement {
             ` : ""}
           </div>
           <div class="summary">
-            ${progressHtml}
+            ${progressHtml ? `
+              <div class="progress-section">
+                ${progressHtml}
+                ${printControlsHtml}
+              </div>
+            ` : ""}
             ${layout === "compact" ? `
               <div class="compact-meta">${this._escape(compactMeta)}</div>
             ` : ""}
@@ -959,6 +992,12 @@ class AnycubicKobraXCard extends HTMLElement {
       this._cameraImage = cameraImage;
       this._configureImage(cameraImage, cameraState);
     }
+
+    this.shadowRoot.querySelectorAll("[data-print-action]").forEach((button) => {
+      button.addEventListener("click", () => {
+        this._pressPrintButton(button.dataset.printAction, button.dataset.confirm);
+      });
+    });
   }
 
   _entityFromConfig(key) {
@@ -1057,6 +1096,9 @@ class AnycubicKobraXCard extends HTMLElement {
       "bed_temperature",
       "fan_speed",
       "camera",
+      "pause_print",
+      "resume_print",
+      "stop_print",
       "layer",
       "total_layer",
       "filament_used",
@@ -1076,6 +1118,16 @@ class AnycubicKobraXCard extends HTMLElement {
     }
     if (key === "camera") {
       return states.find((state) => state.entity_id?.startsWith("camera."));
+    }
+    if (["pause_print", "resume_print", "stop_print"].includes(key)) {
+      const normalizedKey = key.replaceAll("_", "");
+      return states.find((state) => {
+        const entityId = state.entity_id?.split(".").pop()?.replaceAll("_", "") || "";
+        const name = state.attributes?.friendly_name?.toLowerCase().replaceAll(/\s+/g, "") || "";
+        return state.entity_id?.startsWith("button.") && (
+          entityId.endsWith(normalizedKey) || name.endsWith(normalizedKey)
+        );
+      });
     }
     const normalizedKey = key.replaceAll("_", "");
     return states.find((state) => {
@@ -1127,6 +1179,50 @@ class AnycubicKobraXCard extends HTMLElement {
         this._render();
       }, cameraState.state === "streaming" ? 0 : 5000);
     }
+  }
+
+  _renderPrintControls(pauseButton, stopButton, isPaused) {
+    const pauseUnavailable = !pauseButton || this._isUnavailable(pauseButton);
+    const stopUnavailable = !stopButton || this._isUnavailable(stopButton);
+    const pauseTitle = pauseUnavailable
+      ? `${isPaused ? "Resume" : "Pause"} button unavailable`
+      : `${isPaused ? "Resume" : "Pause"} print`;
+    const stopTitle = stopUnavailable ? "Stop button unavailable" : "Stop print";
+    return `
+      <div class="print-actions">
+        <button
+          type="button"
+          class="icon print-action"
+          title="${this._escapeAttribute(pauseTitle)}"
+          aria-label="${this._escapeAttribute(pauseTitle)}"
+          data-print-action="${this._escapeAttribute(pauseButton?.entity_id || "")}"
+          ${pauseUnavailable ? "disabled" : ""}
+        >
+          <ha-icon icon="${isPaused ? "mdi:play" : "mdi:pause"}"></ha-icon>
+        </button>
+        <button
+          type="button"
+          class="icon print-action"
+          title="${this._escapeAttribute(stopTitle)}"
+          aria-label="${this._escapeAttribute(stopTitle)}"
+          data-print-action="${this._escapeAttribute(stopButton?.entity_id || "")}"
+          data-confirm="Stop the active print?"
+          ${stopUnavailable ? "disabled" : ""}
+        >
+          <ha-icon icon="mdi:stop"></ha-icon>
+        </button>
+      </div>
+    `;
+  }
+
+  _pressPrintButton(entityId, confirmMessage) {
+    if (!entityId) {
+      return;
+    }
+    if (confirmMessage && !window.confirm(confirmMessage)) {
+      return;
+    }
+    this._hass.callService("button", "press", { entity_id: entityId });
   }
 
   _visibleStats(isPrinting) {
@@ -1248,6 +1344,10 @@ class AnycubicKobraXCard extends HTMLElement {
     return progress >= 100 && remaining === 0;
   }
 
+  _isPaused(status) {
+    return String(status || "").toLowerCase().replaceAll(/[\s_-]+/g, "") === "paused";
+  }
+
   _displayStatus(printState, lastWillState) {
     const printStatus = this._string(printState);
     if (this._isDiagnosticStatus(printStatus)) {
@@ -1348,10 +1448,6 @@ class AnycubicKobraXCard extends HTMLElement {
 
   _escapeAttribute(value) {
     return this._escape(value).replace(/`/g, "&#96;");
-  }
-
-  _powerIcon() {
-    return `<svg viewBox="0 0 24 24" aria-hidden="true"><path fill="currentColor" d="M13 3h-2v10h2V3m4.83 2.17-1.42 1.42A7 7 0 1 1 7.59 6.6L6.17 5.17A9 9 0 1 0 17.83 5.17Z"/></svg>`;
   }
 
   _lightIcon() {
