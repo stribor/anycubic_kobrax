@@ -173,6 +173,7 @@ python -m pip install -r requirements.txt
 python3 scripts/capture_mqtt.py \
   --host 192.168.1.100 \
   --keep-images \
+  --request-file-details \
   --output .local/mqtt-capture.jsonl
 ```
 
@@ -182,8 +183,10 @@ the integration. It accepts command-line overrides for `--config`, `--username`,
 writes one JSON object per MQTT message and redacts sensitive-looking fields and
 large embedded images by default. Use `--keep-images` to keep `png_image`,
 `svg_image`, and `thumbnail` file preview fields while still redacting
-credentials and tokens. Use `--no-discover` to require explicit MQTT credentials
-from the config file or command line.
+credentials and tokens. Use `--request-file-details` to actively request the
+file metadata response that contains those images after the capture sees a print
+filename. Use `--no-discover` to require explicit MQTT credentials from the
+config file or command line.
 
 Extract captured file preview images with:
 
@@ -195,4 +198,3 @@ python3 scripts/extract_mqtt_images.py .local/mqtt-capture.jsonl
 
 - SSDP/mDNS discovery for `uuid:fdm:...`
 - More complete decoding once real MQTT payload samples are available
-- Capture and implement print pause/resume and stop commands

@@ -292,6 +292,15 @@
       },
       "preheat_pla": {
         "name": "Preheat PLA"
+      },
+      "pause_print": {
+        "name": "Pause print"
+      },
+      "resume_print": {
+        "name": "Resume print"
+      },
+      "stop_print": {
+        "name": "Stop print"
       }
     },
     "number": {

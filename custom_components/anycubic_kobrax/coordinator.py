@@ -333,6 +333,30 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Preheat bed and nozzle for PLA."""
         self.set_temperature(2, 60, 200)
 
+    def print_command(self, action: str) -> None:
+        """Send a print lifecycle command."""
+        self.ensure_connected()
+        self._publish(
+            f"{self.base_web_topic}/print",
+            self._payload(
+                "print",
+                action,
+                {"taskid": str(self._state.get(ATTR_TASK_ID) or "-1")},
+            ),
+        )
+
+    def pause_print(self) -> None:
+        """Pause the active print."""
+        self.print_command("pause")
+
+    def resume_print(self) -> None:
+        """Resume the paused print."""
+        self.print_command("resume")
+
+    def stop_print(self) -> None:
+        """Stop the active print."""
+        self.print_command("stop")
+
     def set_fan_speed(self, speed: int) -> None:
         """Set model fan speed percentage."""
         self.ensure_connected()
@@ -1015,13 +1039,13 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             event_type = EVENT_PRINT_STARTED
         elif state == "preheating":
             event_type = EVENT_PRINT_PREHEATING
-        elif state in {"printing", "updated"}:
+        elif state in {"printing", "updated", "resuming", "resumed"}:
             event_type = EVENT_PRINT_PRINTING
         elif state in {"finished", "finish", "completed", "done"}:
             event_type = EVENT_PRINT_COMPLETED
-        elif state == "paused":
+        elif state in {"pausing", "paused"}:
             event_type = EVENT_PRINT_PAUSED
-        elif state in {"cancelled", "canceled", "stopped"}:
+        elif state in {"cancelled", "canceled", "stopping", "stopped", "stoped"}:
             event_type = EVENT_PRINT_STOPPED
         elif state in {"failed", "error"} or (
             (code := _coerce_int(payload.get("code"))) is not None

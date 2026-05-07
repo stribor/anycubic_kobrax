@@ -58,6 +58,21 @@ BUTTONS = (
         translation_key="preheat_pla",
         action="preheatPla",
     ),
+    AnycubicButtonDescription(
+        key="pause_print",
+        translation_key="pause_print",
+        action="pausePrint",
+    ),
+    AnycubicButtonDescription(
+        key="resume_print",
+        translation_key="resume_print",
+        action="resumePrint",
+    ),
+    AnycubicButtonDescription(
+        key="stop_print",
+        translation_key="stop_print",
+        action="stopPrint",
+    ),
 )
 
 OBSOLETE_AXIS_BUTTON_KEYS = frozenset(
@@ -160,4 +175,16 @@ class AnycubicKobraXButton(AnycubicKobraXEntity, ButtonEntity):
 
         if self.entity_description.action == "preheatPla":
             await self.hass.async_add_executor_job(self.coordinator.preheat_pla)
+            return
+
+        if self.entity_description.action == "pausePrint":
+            await self.hass.async_add_executor_job(self.coordinator.pause_print)
+            return
+
+        if self.entity_description.action == "resumePrint":
+            await self.hass.async_add_executor_job(self.coordinator.resume_print)
+            return
+
+        if self.entity_description.action == "stopPrint":
+            await self.hass.async_add_executor_job(self.coordinator.stop_print)
             return

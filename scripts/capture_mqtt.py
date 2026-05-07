@@ -47,6 +47,7 @@ parse_credential_response = lan_credentials.parse_credential_response
 
 
 DEFAULT_PORT = 9883
+TOPIC_BASE = "anycubic/anycubicCloud/v1"
 DEFAULT_TOPIC = "anycubic/anycubicCloud/v1/#"
 SENSITIVE_KEYS = {
     "access_token",
@@ -128,6 +129,11 @@ def parse_args() -> argparse.Namespace:
         "--keep-images",
         action="store_true",
         help="Keep file preview image payloads while still redacting credentials and tokens.",
+    )
+    parser.add_argument(
+        "--request-file-details",
+        action="store_true",
+        help="Publish one fileDetails request when a print filename is seen.",
     )
     parser.add_argument(
         "--raw-payload",
@@ -264,6 +270,18 @@ def fetch_json(
     return payload
 
 
+def mqtt_payload(
+    message_type: str, action: str, data: Mapping[str, Any] | None = None
+) -> dict[str, Any]:
+    return {
+        "type": message_type,
+        "action": action,
+        "timestamp": int(time.time() * 1000),
+        "msgid": str(uuid4()),
+        "data": data,
+    }
+
+
 def build_client(
     *,
     client_id: str,
@@ -353,9 +371,13 @@ def main() -> int:
     port = int(config_value(args, config, "port", "mqtt_port", "port", default=DEFAULT_PORT))
     cert = config_value(args, config, "cert", "client_cert", "cert", "device_cert")
     key = config_value(args, config, "key", "client_key", "key", "device_key")
+    type_id = config_value(args, config, "type_id", "type_id", "model_id")
+    printer_id = config_value(args, config, "printer_id", "printer_id")
     topics = args.topic or [DEFAULT_TOPIC]
 
-    if host and not args.no_discover and not (username and password and cert and key):
+    needs_credentials = not (username and password and cert and key)
+    needs_printer_identity = args.request_file_details and not (type_id and printer_id)
+    if host and not args.no_discover and (needs_credentials or needs_printer_identity):
         try:
             print(f"Discovering LAN MQTT credentials from {host}", file=sys.stderr)
             discovered = discover_credentials(str(host))
@@ -367,6 +389,8 @@ def main() -> int:
             password = password or discovered.get("mqtt_password")
             cert = cert or discovered.get("device_cert")
             key = key or discovered.get("device_key")
+            type_id = type_id or discovered.get("type_id")
+            printer_id = printer_id or discovered.get("printer_id")
             device_label = discovered.get("device_name") or discovered.get("model_name")
             if device_label:
                 print(f"Discovered credentials for {device_label}", file=sys.stderr)
@@ -411,6 +435,7 @@ def main() -> int:
     connected_event = threading.Event()
     done_event = threading.Event()
     message_count = 0
+    requested_files: set[str] = set()
     output, should_close = open_output(args.output)
 
     def request_stop(_signum: int, _frame: Any) -> None:
@@ -450,6 +475,7 @@ def main() -> int:
     ) -> None:
         nonlocal message_count
         payload, raw_text = decode_payload(message.payload)
+        request_file_details(_client, payload)
         if not args.no_redact:
             payload = redact(payload, keep_images=args.keep_images)
 
@@ -469,6 +495,41 @@ def main() -> int:
         if args.count is not None and message_count >= args.count:
             done_event.set()
             stop_event.set()
+
+    def request_file_details(client: mqtt.Client, payload: Any) -> None:
+        if not args.request_file_details:
+            return
+        if not type_id or not printer_id:
+            return
+        if not isinstance(payload, dict):
+            return
+        if payload.get("type") != "print":
+            return
+        data = payload.get("data")
+        if not isinstance(data, dict):
+            return
+        filename = data.get("filename") or data.get("task_name")
+        if not isinstance(filename, str) or not filename:
+            return
+        root = str(data.get("root") or "local")
+        request_key = f"{root}:{filename}"
+        if request_key in requested_files:
+            return
+        requested_files.add(request_key)
+        topic = f"{TOPIC_BASE}/web/printer/{type_id}/{printer_id}/file"
+        client.publish(
+            topic,
+            json.dumps(
+                mqtt_payload(
+                    "file",
+                    "fileDetails",
+                    {"root": root, "filename": filename},
+                )
+            ),
+            qos=0,
+            retain=False,
+        )
+        print(f"Requested file details for {filename}", file=sys.stderr)
 
     client.on_connect = on_connect
     client.on_message = on_message
