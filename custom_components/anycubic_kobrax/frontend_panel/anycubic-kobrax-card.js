@@ -31,6 +31,7 @@ const ANYCUBIC_IDLE_STATUS_TEXT = [
   "finish",
   "finished",
 ];
+const ANYCUBIC_DIAGNOSTIC_STATUS_TEXT = ["received"];
 
 function anycubicEntityMatches(states) {
   const explicit = states.filter((state) => {
@@ -258,7 +259,7 @@ class AnycubicKobraXCard extends HTMLElement {
     const remaining = this._seconds(get("remaining_time"));
     const progress = this._number(get("progress"), 0);
     const title = this._config.name || this._string(get("printer_name")) || "Anycubic printer";
-    const rawStatus = this._string(get("print_state")) || this._state(get("last_will"));
+    const rawStatus = this._displayStatus(get("print_state"), get("last_will"));
     const status = this._formatStatus(rawStatus);
     const elapsed = this._formatDuration(this._seconds(get("total_time")), false);
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
@@ -1086,6 +1087,20 @@ class AnycubicKobraXCard extends HTMLElement {
       return true;
     }
     return progress >= 100 && remaining === 0;
+  }
+
+  _displayStatus(printState, lastWillState) {
+    const printStatus = this._string(printState);
+    if (printStatus) {
+      return printStatus;
+    }
+    const lastWill = this._state(lastWillState);
+    return this._isDiagnosticStatus(lastWill) ? "free" : lastWill;
+  }
+
+  _isDiagnosticStatus(status) {
+    const normalized = String(status || "").toLowerCase().replaceAll(/[\s_-]+/g, "");
+    return ANYCUBIC_DIAGNOSTIC_STATUS_TEXT.includes(normalized);
   }
 
   _state(state) {
