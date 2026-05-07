@@ -317,6 +317,9 @@
     "image": {
       "preview_image": {
         "name": "Preview image"
+      },
+      "thumbnail_image": {
+        "name": "Thumbnail image"
       }
     },
     "event": {

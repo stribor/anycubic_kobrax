@@ -172,6 +172,7 @@ class AnycubicKobraXCard extends HTMLElement {
               mode: "dropdown",
               options: [
                 { value: "preview", label: "Preview image" },
+                { value: "thumbnail", label: "Thumbnail image" },
                 { value: "camera", label: "Camera stream" },
                 { value: "none", label: "None" },
               ],
@@ -273,14 +274,17 @@ class AnycubicKobraXCard extends HTMLElement {
     const eta = isPrinting && remaining !== null
       ? this._formatClock(Date.now() + remaining * 1000)
       : "--";
-    const mediaView = ["preview", "camera", "none"].includes(this._config.media_view)
+    const mediaView = ["preview", "thumbnail", "camera", "none"].includes(this._config.media_view)
       ? this._config.media_view
       : "preview";
     const cameraState = this._entityFromConfig("camera_entity") || entities.camera;
-    const previewUrl = mediaView === "preview" && this._config.hide_preview_when_idle && isIdle
+    const mediaImageState = mediaView === "thumbnail"
+      ? get("thumbnail_image") || get("preview_image")
+      : get("preview_image");
+    const previewUrl = ["preview", "thumbnail"].includes(mediaView) && this._config.hide_preview_when_idle && isIdle
       ? ""
-      : mediaView === "preview"
-      ? this._previewImageUrl(get("preview_image"))
+      : ["preview", "thumbnail"].includes(mediaView)
+      ? this._previewImageUrl(mediaImageState)
       : "";
     const showCamera = mediaView === "camera" && cameraState && !this._isUnavailable(cameraState);
     const cameraIsStreaming = showCamera && cameraState.state === "streaming";
@@ -1104,6 +1108,7 @@ class AnycubicKobraXCard extends HTMLElement {
       "filament_used",
       "supplies_usage",
       "preview_image",
+      "thumbnail_image",
       "loaded_slot",
     ];
     for (let slot = 1; slot <= 4; slot += 1) {

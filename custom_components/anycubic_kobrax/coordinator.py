@@ -178,6 +178,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self.preview_image: bytes | None = None
         self.preview_image_content_type = "image/png"
         self.preview_image_updated: datetime | None = None
+        self.thumbnail_image: bytes | None = None
+        self.thumbnail_image_content_type = "image/png"
+        self.thumbnail_image_updated: datetime | None = None
         super().__init__(
             hass,
             _LOGGER,
@@ -923,7 +926,15 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _merge_preview_image(self, details: dict[str, Any]) -> None:
         """Keep the newest file preview in memory without storing it in state."""
-        encoded = details.get("png_image") or details.get("thumbnail")
+        self._merge_image_data("preview", details.get("png_image"))
+        self._merge_image_data("thumbnail", details.get("thumbnail"))
+        if self.preview_image is None and self.thumbnail_image is not None:
+            self.preview_image = self.thumbnail_image
+            self.preview_image_content_type = self.thumbnail_image_content_type
+            self.preview_image_updated = self.thumbnail_image_updated
+
+    def _merge_image_data(self, image_type: str, encoded: Any) -> None:
+        """Decode a file metadata image into the requested in-memory slot."""
         if not isinstance(encoded, str) or not encoded:
             return
 
@@ -933,12 +944,22 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             _LOGGER.debug("Ignoring invalid Anycubic file preview image")
             return
 
-        if image == self.preview_image:
+        current = (
+            self.thumbnail_image if image_type == "thumbnail" else self.preview_image
+        )
+        if image == current:
+            return
+
+        updated = datetime.now(timezone.utc)
+        if image_type == "thumbnail":
+            self.thumbnail_image = image
+            self.thumbnail_image_content_type = "image/png"
+            self.thumbnail_image_updated = updated
             return
 
         self.preview_image = image
         self.preview_image_content_type = "image/png"
-        self.preview_image_updated = datetime.now(timezone.utc)
+        self.preview_image_updated = updated
 
     def _merge_print_payload(self, payload: dict[str, Any]) -> None:
         """Merge print lifecycle and buried metadata."""

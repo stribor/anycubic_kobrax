@@ -79,7 +79,7 @@ visible_stats:
   - fan
   - remaining
 show_slots: true
-media_view: preview # preview, camera, or none
+media_view: preview # preview, thumbnail, camera, or none
 camera_entity: camera.kobra_x_camera # optional when media_view is camera
 ```
 
