@@ -553,14 +553,6 @@ class AnycubicKobraXCard extends HTMLElement {
           width: 100%;
         }
 
-        .camera-image-anchor {
-          display: block;
-          height: 100%;
-          inset: 0;
-          position: absolute;
-          width: 100%;
-        }
-
         .camera-slot hui-image {
           display: block;
           height: 100%;
@@ -917,7 +909,7 @@ class AnycubicKobraXCard extends HTMLElement {
               <div class="media camera-media">
                 ${cameraIsStreaming ? `
                   <div class="camera-slot">
-                    <div class="camera-image-anchor"></div>
+                    <hui-image></hui-image>
                     ${this._cameraBusy ? `<div class="camera-warmup">Starting stream</div>` : ""}
                   </div>
                 ` : `
@@ -954,13 +946,10 @@ class AnycubicKobraXCard extends HTMLElement {
       cameraButton.addEventListener("click", () => this._toggleCamera(this._matchedEntity("camera_entity", "camera")));
     }
 
-    const cameraAnchor = this.shadowRoot.querySelector(".camera-image-anchor");
-    if (cameraAnchor && cameraState) {
-      if (!this._cameraImage) {
-        this._cameraImage = document.createElement("hui-image");
-      }
-      cameraAnchor.appendChild(this._cameraImage);
-      this._configureImage(this._cameraImage, cameraState);
+    const cameraImage = this.shadowRoot.querySelector(".camera-slot hui-image");
+    if (cameraImage && cameraState) {
+      this._cameraImage = cameraImage;
+      this._configureImage(cameraImage, cameraState);
     }
   }
 
@@ -983,7 +972,7 @@ class AnycubicKobraXCard extends HTMLElement {
     if (this._config.media_view !== "camera") {
       return false;
     }
-    const image = this.shadowRoot.querySelector(".camera-image-anchor hui-image");
+    const image = this.shadowRoot.querySelector(".camera-slot hui-image");
     if (!image) {
       return false;
     }
