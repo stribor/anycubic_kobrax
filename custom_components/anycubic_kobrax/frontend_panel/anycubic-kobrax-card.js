@@ -641,6 +641,43 @@ class AnycubicKobraXCard extends HTMLElement {
           gap: 4px;
         }
 
+        button.print-action {
+          background: var(--secondary-background-color);
+          border: 1px solid var(--divider-color);
+          border-radius: 999px;
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+          color: var(--primary-text-color);
+          cursor: pointer;
+          height: 36px;
+          width: 36px;
+        }
+
+        button.print-action.danger {
+          color: var(--error-color, #db4437);
+        }
+
+        button.print-action:not([disabled]):hover {
+          background: var(--state-hover-color, rgba(128, 128, 128, 0.18));
+          border-color: var(--primary-text-color);
+          box-shadow: 0 3px 8px rgba(0, 0, 0, 0.18);
+          transform: translateY(-1px);
+        }
+
+        button.print-action.danger:not([disabled]):hover {
+          background: color-mix(in srgb, var(--error-color, #db4437) 14%, transparent);
+          border-color: var(--error-color, #db4437);
+        }
+
+        button.print-action:not([disabled]):focus-visible {
+          outline: 2px solid var(--accent-color);
+          outline-offset: 3px;
+        }
+
+        button.print-action:not([disabled]):active {
+          box-shadow: 0 1px 2px rgba(0, 0, 0, 0.12);
+          transform: translateY(0) scale(0.96);
+        }
+
         .progress-bar-top {
           align-items: center;
           color: var(--secondary-text-color, var(--primary-text-color));
@@ -1207,7 +1244,7 @@ class AnycubicKobraXCard extends HTMLElement {
         </button>
         <button
           type="button"
-          class="icon print-action"
+          class="icon print-action danger"
           title="${this._escapeAttribute(stopTitle)}"
           aria-label="${this._escapeAttribute(stopTitle)}"
           data-print-action="${this._escapeAttribute(stopButton?.entity_id || "")}"
