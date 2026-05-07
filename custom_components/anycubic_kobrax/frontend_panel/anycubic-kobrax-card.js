@@ -1142,6 +1142,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     this._config = {};
     this._hass = undefined;
     this._busy = false;
+    this._streamWarmupUntil = 0;
   }
 
   setConfig(config) {
@@ -1215,9 +1216,10 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     const cameraUnavailable = !cameraState || this._isUnavailable(cameraState);
     const lightUnavailable = !lightState || this._isUnavailable(lightState);
     const isStreaming = cameraState?.state === "streaming";
+    const isWarming = this._busy || Date.now() < this._streamWarmupUntil;
     const lightIsOn = lightState?.state === "on";
     const title = this._config.name || "Camera";
-    const streamLabel = this._busy
+    const streamLabel = isWarming
       ? "Starting"
       : isStreaming
       ? "Stop"
@@ -1306,6 +1308,19 @@ class AnycubicKobraXCameraCard extends HTMLElement {
           display: block;
           height: 100%;
           width: 100%;
+        }
+
+        .warmup {
+          align-items: center;
+          background: color-mix(in srgb, var(--secondary-background-color) 88%, transparent);
+          color: var(--secondary-text-color);
+          display: grid;
+          inset: 0;
+          justify-items: center;
+          padding: 18px;
+          position: absolute;
+          text-align: center;
+          z-index: 1;
         }
 
         .placeholder {
@@ -1426,9 +1441,12 @@ class AnycubicKobraXCameraCard extends HTMLElement {
           ${cameraState && isStreaming ? "<hui-image></hui-image>" : `
             <div class="placeholder">
               <ha-icon icon="mdi:video-outline"></ha-icon>
-              <div>${this._escape(cameraUnavailable ? "Camera unavailable" : "Stream stopped")}</div>
+              <div>${this._escape(cameraUnavailable ? "Camera unavailable" : isWarming ? "Starting stream" : "Stream stopped")}</div>
             </div>
           `}
+          ${cameraState && isStreaming && isWarming ? `
+            <div class="warmup">Starting stream</div>
+          ` : ""}
         </div>
 
         <div class="actions">
@@ -1436,7 +1454,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
             type="button"
             class="stream ${isStreaming ? "" : "primary"}"
             title="${this._escapeAttribute(streamTitle)}"
-            ${cameraUnavailable || this._busy ? "disabled" : ""}
+            ${cameraUnavailable || isWarming ? "disabled" : ""}
           >
             <ha-icon icon="${isStreaming ? "mdi:stop" : "mdi:play"}"></ha-icon>
             <span>${this._escape(streamLabel)}</span>
@@ -1460,7 +1478,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     }
 
     const streamButton = this.shadowRoot.querySelector(".stream");
-    if (streamButton && !cameraUnavailable && !this._busy) {
+    if (streamButton && !cameraUnavailable && !isWarming) {
       streamButton.addEventListener("click", () => this._toggleCamera(cameraState));
     }
     const lightButton = this.shadowRoot.querySelector(".light");
@@ -1499,6 +1517,10 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     const state = this.shadowRoot.querySelector(".state");
     if (state) {
       state.textContent = this._formatState(cameraState);
+    }
+    const warmup = this.shadowRoot.querySelector(".warmup");
+    if (warmup && Date.now() >= this._streamWarmupUntil) {
+      warmup.remove();
     }
     return true;
   }
@@ -1544,6 +1566,13 @@ class AnycubicKobraXCameraCard extends HTMLElement {
       return;
     }
     this._busy = true;
+    if (cameraState.state !== "streaming") {
+      this._streamWarmupUntil = Date.now() + 7000;
+      window.setTimeout(() => {
+        this._streamWarmupUntil = 0;
+        this._render();
+      }, 7000);
+    }
     this._render();
     try {
       await this._hass.callService(
@@ -1553,6 +1582,9 @@ class AnycubicKobraXCameraCard extends HTMLElement {
       );
     } finally {
       this._busy = false;
+      if (cameraState.state === "streaming") {
+        this._streamWarmupUntil = 0;
+      }
       this._render();
     }
   }
