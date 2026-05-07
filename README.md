@@ -156,6 +156,23 @@ trigger such as **Print completed**, **Print failed**, or **Axis error**. Device
 triggers are a UI-friendly wrapper around the integration's printer events; they
 do not send notifications on their own.
 
+## Capturing MQTT samples
+
+To improve decoder coverage, capture real printer traffic while using the
+printer, camera controls, and Anycubic slicer. Keep raw captures in `.local/`
+because they may contain printer identifiers, stream tokens, and file names:
+
+```bash
+python3 scripts/capture_mqtt.py \
+  --config .local/anycubic_kobrax.dev.yaml \
+  --output .local/mqtt-capture.jsonl
+```
+
+The script accepts command-line overrides for `--host`, `--username`,
+`--password`, `--cert`, `--key`, `--topic`, `--count`, and `--duration`. It
+writes one JSON object per MQTT message and redacts sensitive-looking fields and
+large embedded images by default.
+
 ## Still to improve
 
 - SSDP/mDNS discovery for `uuid:fdm:...`
