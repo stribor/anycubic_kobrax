@@ -74,6 +74,8 @@ class AnycubicKobraXCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._config = {};
     this._hass = undefined;
+    this._cameraImage = undefined;
+    this._cameraBusy = false;
   }
 
   setConfig(config) {
@@ -276,6 +278,11 @@ class AnycubicKobraXCard extends HTMLElement {
       : "";
     const showCamera = mediaView === "camera" && cameraState && !this._isUnavailable(cameraState);
     const cameraIsStreaming = showCamera && cameraState.state === "streaming";
+    const cameraTitle = !showCamera
+      ? "Camera unavailable"
+      : cameraIsStreaming
+      ? "Stop camera stream"
+      : "Start camera stream";
     const progressStyle = ["number", "bar", "hidden"].includes(this._config.progress_style)
       ? this._config.progress_style
       : "number";
@@ -316,6 +323,10 @@ class AnycubicKobraXCard extends HTMLElement {
       : lightState
       ? `Turn ${lightIsOn ? "off" : "on"} printer light`
       : "Printer light entity not found";
+    const reusableCameraImage = this._cameraImage;
+    if (reusableCameraImage?.isConnected) {
+      reusableCameraImage.remove();
+    }
 
     this.shadowRoot.innerHTML = `
       <style>
@@ -349,7 +360,7 @@ class AnycubicKobraXCard extends HTMLElement {
         .top {
           align-items: center;
           display: grid;
-          grid-template-columns: 32px minmax(0, 1fr) 32px;
+          grid-template-columns: 32px minmax(0, 1fr) auto;
           gap: 12px;
           margin-bottom: 14px;
         }
@@ -437,6 +448,13 @@ class AnycubicKobraXCard extends HTMLElement {
         .icon svg {
           height: 28px;
           width: 28px;
+        }
+
+        .header-actions {
+          align-items: center;
+          display: flex;
+          gap: 4px;
+          justify-content: flex-end;
         }
 
         .main {
@@ -790,13 +808,26 @@ class AnycubicKobraXCard extends HTMLElement {
               <span class="dot"></span>
               <span class="title-text">${this._escape(title)}</span>
             </div>
-            <button
-              type="button"
-              class="icon light-toggle ${lightIsOn ? "active" : ""}"
-              title="${this._escapeAttribute(lightTitle)}"
-              ${lightUnavailable ? "disabled" : ""}
-              aria-label="${this._escapeAttribute(lightTitle)}"
-            >${this._lightIcon()}</button>
+            <div class="header-actions">
+              ${mediaView === "camera" ? `
+                <button
+                  type="button"
+                  class="icon camera-toggle ${cameraIsStreaming ? "active" : ""}"
+                  title="${this._escapeAttribute(cameraTitle)}"
+                  ${!showCamera || this._cameraBusy ? "disabled" : ""}
+                  aria-label="${this._escapeAttribute(cameraTitle)}"
+                >
+                  <ha-icon icon="${cameraIsStreaming ? "mdi:stop" : "mdi:play"}"></ha-icon>
+                </button>
+              ` : ""}
+              <button
+                type="button"
+                class="icon light-toggle ${lightIsOn ? "active" : ""}"
+                title="${this._escapeAttribute(lightTitle)}"
+                ${lightUnavailable ? "disabled" : ""}
+                aria-label="${this._escapeAttribute(lightTitle)}"
+              >${this._lightIcon()}</button>
+            </div>
           </header>
         ` : ""}
 
@@ -814,10 +845,10 @@ class AnycubicKobraXCard extends HTMLElement {
             ` : ""}
             ${showCamera ? `
               <div class="media camera-media">
-                ${cameraIsStreaming ? "<hui-image></hui-image>" : `
+                ${cameraIsStreaming ? `<div class="camera-slot"></div>` : `
                   <div class="camera-placeholder">
                     <ha-icon icon="mdi:video-outline"></ha-icon>
-                    <div>Camera stopped</div>
+                    <div>${this._escape(this._cameraBusy ? "Starting stream" : "Camera stopped")}</div>
                   </div>
                 `}
               </div>
@@ -843,9 +874,18 @@ class AnycubicKobraXCard extends HTMLElement {
       lightButton.addEventListener("click", () => this._toggleLight(lightState));
     }
 
-    const cameraImage = this.shadowRoot.querySelector(".camera-media hui-image");
-    if (cameraImage && cameraState) {
-      this._configureImage(cameraImage, cameraState);
+    const cameraButton = this.shadowRoot.querySelector(".camera-toggle");
+    if (cameraButton && showCamera && !this._cameraBusy) {
+      cameraButton.addEventListener("click", () => this._toggleCamera(cameraState));
+    }
+
+    const cameraSlot = this.shadowRoot.querySelector(".camera-slot");
+    if (cameraSlot && cameraState) {
+      if (!this._cameraImage) {
+        this._cameraImage = document.createElement("hui-image");
+      }
+      cameraSlot.appendChild(this._cameraImage);
+      this._configureImage(this._cameraImage, cameraState);
     }
   }
 
@@ -907,6 +947,26 @@ class AnycubicKobraXCard extends HTMLElement {
         entity_id: lightState.entity_id,
       },
     );
+  }
+
+  async _toggleCamera(cameraState) {
+    if (!cameraState || this._isUnavailable(cameraState)) {
+      return;
+    }
+    this._cameraBusy = true;
+    this._render();
+    try {
+      await this._hass.callService(
+        "camera",
+        cameraState.state === "streaming" ? "turn_off" : "turn_on",
+        { entity_id: cameraState.entity_id },
+      );
+    } finally {
+      window.setTimeout(() => {
+        this._cameraBusy = false;
+        this._render();
+      }, cameraState.state === "streaming" ? 0 : 5000);
+    }
   }
 
   _visibleStats(isPrinting) {
