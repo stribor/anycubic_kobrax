@@ -89,6 +89,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--password", help="MQTT password.")
     parser.add_argument("--cert", type=Path, help="Client certificate PEM path.")
     parser.add_argument("--key", type=Path, help="Client private key PEM path.")
+    parser.add_argument("--type-id", help="Printer model/type ID for command topics.")
+    parser.add_argument("--printer-id", help="Printer ID for command topics.")
     parser.add_argument(
         "-t",
         "--topic",
