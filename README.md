@@ -186,3 +186,4 @@ credentials from the config file or command line.
 
 - SSDP/mDNS discovery for `uuid:fdm:...`
 - More complete decoding once real MQTT payload samples are available
+- Capture and implement print pause/resume and stop commands

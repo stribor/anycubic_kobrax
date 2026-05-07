@@ -133,7 +133,11 @@ SENSORS = (
     AnycubicSensorDescription(
         key=ATTR_FILAMENT_USED,
         translation_key="filament_used",
-        native_unit_of_measurement="m",
+        native_unit_of_measurement="g",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_SUPPLIES_USAGE,
+        translation_key="supplies_usage",
     ),
     AnycubicSensorDescription(
         key=ATTR_ESTIMATE_DURATION,

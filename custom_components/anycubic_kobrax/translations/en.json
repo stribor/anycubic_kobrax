@@ -107,6 +107,9 @@
       "filament_used": {
         "name": "Filament used"
       },
+      "supplies_usage": {
+        "name": "Supplies usage"
+      },
       "estimate_duration": {
         "name": "Estimated duration"
       },

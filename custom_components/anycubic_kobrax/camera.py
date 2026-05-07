@@ -42,8 +42,8 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
     ) -> bytes | None:
-        """Return the last decoded preview image for still-image requests."""
-        return self.coordinator.preview_image
+        """Return no still image so camera cards do not show print previews."""
+        return None
 
     @property
     def is_streaming(self) -> bool:

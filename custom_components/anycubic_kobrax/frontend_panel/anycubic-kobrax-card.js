@@ -6,6 +6,8 @@ const ANYCUBIC_DEFAULT_STATS = [
   "hotend",
   "bed",
   "fan",
+  "layer",
+  "filament",
   "remaining",
 ];
 const ANYCUBIC_STAT_LABELS = {
@@ -15,6 +17,8 @@ const ANYCUBIC_STAT_LABELS = {
   hotend: "Hotend",
   bed: "Bed",
   fan: "Fan",
+  layer: "Layer",
+  filament: "Filament",
   remaining: "Remaining",
 };
 const ANYCUBIC_IDLE_STATUS_TEXT = [
@@ -262,6 +266,8 @@ class AnycubicKobraXCard extends HTMLElement {
       hotend: this._formatTemp(get("nozzle_temperature")),
       bed: this._formatTemp(get("bed_temperature")),
       fan: this._formatPercent(this._number(get("fan_speed"))),
+      layer: this._formatLayer(get("layer"), get("total_layer")),
+      filament: this._formatFilament(get("filament_used") || get("supplies_usage")),
       remaining: this._formatDuration(remaining, false),
     };
     const statsHtml = visibleStats
@@ -567,7 +573,12 @@ class AnycubicKobraXCard extends HTMLElement {
 
         .spool {
           align-items: center;
-          background: var(--slot-color, var(--disabled-color));
+          background:
+            radial-gradient(circle at center,
+              var(--ha-card-background, var(--card-background-color, #fff)) 0 18%,
+              color-mix(in srgb, var(--slot-color, var(--disabled-color)) 72%, #fff) 19% 29%,
+              var(--slot-color, var(--disabled-color)) 30% 100%);
+          border: 3px solid color-mix(in srgb, var(--slot-color, var(--disabled-color)) 78%, #fff);
           border-radius: 50%;
           display: flex;
           height: 54px;
@@ -584,20 +595,27 @@ class AnycubicKobraXCard extends HTMLElement {
             --ha-card-background,
             var(--card-background-color, #fff)
           );
+          border: 2px solid color-mix(in srgb, var(--slot-color, var(--disabled-color)) 80%, #000);
           border-radius: 50%;
           content: "";
-          height: 53%;
+          height: 35%;
           position: absolute;
-          width: 53%;
+          width: 35%;
         }
 
-        .slot-number {
-          color: var(--primary-text-color);
-          font-size: 1rem;
-          font-size: clamp(14px, 4cqw, 17px);
-          font-weight: 800;
-          position: relative;
-          z-index: 1;
+        .feeding .spool::before {
+          background: var(--accent-color);
+          border: 2px solid var(--ha-card-background, var(--card-background-color, #fff));
+          border-radius: 999px;
+          box-shadow: 0 0 0 2px color-mix(in srgb, var(--accent-color) 40%, transparent);
+          content: "";
+          height: 18px;
+          left: 0;
+          position: absolute;
+          top: 0;
+          transform: translate(-18%, -18%);
+          width: 18px;
+          z-index: 2;
         }
 
         .filament {
@@ -615,7 +633,14 @@ class AnycubicKobraXCard extends HTMLElement {
         }
 
         .empty .spool {
-          --slot-color: var(--disabled-color);
+          --slot-color: color-mix(in srgb, var(--disabled-color) 54%, var(--primary-text-color));
+          background:
+            radial-gradient(circle at center,
+              var(--ha-card-background, var(--card-background-color, #fff)) 0 17%,
+              color-mix(in srgb, var(--slot-color) 70%, #fff) 18% 24%,
+              var(--slot-color) 25% 100%);
+          border-color: transparent;
+          opacity: 0.7;
         }
 
         @container (min-width: 620px) {
@@ -691,12 +716,8 @@ class AnycubicKobraXCard extends HTMLElement {
           }
 
           .spool::after {
-            height: 39px;
-            width: 39px;
-          }
-
-          .slot-number {
-            font-size: 1rem;
+            height: 26px;
+            width: 26px;
           }
 
           .filament {
@@ -772,10 +793,15 @@ class AnycubicKobraXCard extends HTMLElement {
       "nozzle_temperature",
       "bed_temperature",
       "fan_speed",
+      "layer",
+      "total_layer",
+      "filament_used",
+      "supplies_usage",
       "preview_image",
+      "loaded_slot",
     ];
     for (let slot = 1; slot <= 4; slot += 1) {
-      keys.push(`slot_${slot}_type`, `slot_${slot}_color`);
+      keys.push(`slot_${slot}_type`, `slot_${slot}_status`, `slot_${slot}_color`);
     }
     return Object.fromEntries(keys.map((key) => [key, this._findByKey(matches, key)]));
   }
@@ -842,15 +868,18 @@ class AnycubicKobraXCard extends HTMLElement {
 
   _renderSlot(slot, get) {
     const typeState = get(`slot_${slot}_type`);
+    const statusState = get(`slot_${slot}_status`);
     const colorState = get(`slot_${slot}_color`);
-    const label = this._string(typeState) || "---";
+    const loadedSlot = this._number(get("loaded_slot"));
+    const material = this._string(typeState);
+    const status = this._number(statusState);
+    const mounted = material && status !== 4;
+    const feeding = loadedSlot === slot - 1;
+    const label = mounted ? material : "Not mounted";
     const color = this._slotColor(colorState);
-    const empty = label === "---" || label.toLowerCase() === "unknown" || label.toLowerCase() === "unavailable";
     return `
-      <div class="slot ${empty ? "empty" : ""}">
-        <div class="spool" style="--slot-color: ${this._escapeAttribute(color)}">
-          <span class="slot-number">${slot}</span>
-        </div>
+      <div class="slot ${mounted ? "" : "empty"} ${feeding ? "feeding" : ""}">
+        <div class="spool" style="--slot-color: ${this._escapeAttribute(color)}"></div>
         <div class="filament" title="${this._escapeAttribute(label)}">${this._escape(label)}</div>
       </div>
     `;
@@ -873,6 +902,23 @@ class AnycubicKobraXCard extends HTMLElement {
       return "";
     }
     return state.attributes?.entity_picture || "";
+  }
+
+  _formatLayer(layerState, totalLayerState) {
+    const layer = this._number(layerState);
+    const totalLayer = this._number(totalLayerState);
+    if (layer === null && totalLayer === null) {
+      return "--";
+    }
+    return `${layer ?? "--"} / ${totalLayer ?? "--"}`;
+  }
+
+  _formatFilament(state) {
+    const value = this._number(state);
+    if (value === null) {
+      return "--";
+    }
+    return `${Number(value.toFixed(2))} ${state?.attributes?.unit_of_measurement || ""}`.trim();
   }
 
   _string(state) {
