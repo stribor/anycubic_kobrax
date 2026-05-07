@@ -218,6 +218,18 @@ class AnycubicKobraXCard extends HTMLElement {
             boolean: {},
           },
         },
+        {
+          name: "show_pause_button",
+          selector: {
+            boolean: {},
+          },
+        },
+        {
+          name: "show_stop_button",
+          selector: {
+            boolean: {},
+          },
+        },
       ],
       computeLabel: (schema) => {
         switch (schema.name) {
@@ -245,6 +257,10 @@ class AnycubicKobraXCard extends HTMLElement {
             return "Show filament slots";
           case "show_header":
             return "Show header";
+          case "show_pause_button":
+            return "Show pause button";
+          case "show_stop_button":
+            return "Show stop button";
           default:
             return schema.name;
         }
@@ -330,8 +346,16 @@ class AnycubicKobraXCard extends HTMLElement {
       : `<div class="progress-number">${this._escape(this._formatPercent(progress))}</div>`;
     const pauseButton = isPaused ? get("resume_print") : get("pause_print");
     const stopButton = get("stop_print");
+    const showPauseButton = this._config.show_pause_button !== false;
+    const showStopButton = this._config.show_stop_button !== false;
     const printControlsHtml = isPrinting && !hideProgress
-      ? this._renderPrintControls(pauseButton, stopButton, isPaused)
+      ? this._renderPrintControls(
+          pauseButton,
+          stopButton,
+          isPaused,
+          showPauseButton,
+          showStopButton
+        )
       : "";
     const compactMeta = isIdle
       ? status
@@ -1223,7 +1247,16 @@ class AnycubicKobraXCard extends HTMLElement {
     }
   }
 
-  _renderPrintControls(pauseButton, stopButton, isPaused) {
+  _renderPrintControls(
+    pauseButton,
+    stopButton,
+    isPaused,
+    showPauseButton,
+    showStopButton
+  ) {
+    if (!showPauseButton && !showStopButton) {
+      return "";
+    }
     const pauseUnavailable = this._isPrintButtonUnavailable(pauseButton);
     const stopUnavailable = this._isPrintButtonUnavailable(stopButton);
     const pauseTitle = pauseUnavailable
@@ -1232,7 +1265,7 @@ class AnycubicKobraXCard extends HTMLElement {
     const stopTitle = stopUnavailable ? "Stop button unavailable" : "Stop print";
     return `
       <div class="print-actions">
-        <button
+        ${showPauseButton ? `<button
           type="button"
           class="icon print-action"
           title="${this._escapeAttribute(pauseTitle)}"
@@ -1241,8 +1274,8 @@ class AnycubicKobraXCard extends HTMLElement {
           ${pauseUnavailable ? "disabled" : ""}
         >
           <ha-icon icon="${isPaused ? "mdi:play" : "mdi:pause"}"></ha-icon>
-        </button>
-        <button
+        </button>` : ""}
+        ${showStopButton ? `<button
           type="button"
           class="icon print-action danger"
           title="${this._escapeAttribute(stopTitle)}"
@@ -1252,7 +1285,7 @@ class AnycubicKobraXCard extends HTMLElement {
           ${stopUnavailable ? "disabled" : ""}
         >
           <ha-icon icon="mdi:stop"></ha-icon>
-        </button>
+        </button>` : ""}
       </div>
     `;
   }
