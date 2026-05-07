@@ -386,10 +386,12 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def start_video(self) -> None:
         """Ask the printer to start camera capture."""
         self.ensure_connected()
+        self._state.pop(ATTR_STREAM_URL, None)
         self._publish(
             f"{self.base_web_topic}/video",
             self._payload("video", "startCapture"),
         )
+        self.refresh_stream_url()
 
     def stop_video(self) -> None:
         """Ask the printer to stop camera capture."""
@@ -398,6 +400,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             f"{self.base_web_topic}/video",
             self._payload("video", "stopCapture"),
         )
+
+    def refresh_stream_url(self) -> None:
+        """Ask the printer for current metadata containing the live URL."""
+        self.publish_query("web", "info", "query")
 
     def axis_command(self, action: str, data: Mapping[str, Any] | None = None) -> None:
         """Send an axis command to the printer."""
@@ -433,11 +439,11 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Turn off axis motors."""
         self.axis_command("turnOff")
 
-    def stream_url(self) -> str | None:
+    def stream_url(self, *, allow_configured: bool = True) -> str | None:
         """Return the best-known FLV stream URL."""
         if stream_url := self._state.get(ATTR_STREAM_URL):
             return str(stream_url)
-        if self.device.stream_path:
+        if allow_configured and self.device.stream_path:
             path = self.device.stream_path
             if path.startswith("http://") or path.startswith("https://"):
                 return path

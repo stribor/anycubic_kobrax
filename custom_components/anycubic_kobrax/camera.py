@@ -32,12 +32,20 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
         """Initialize the camera."""
         AnycubicKobraXEntity.__init__(self, coordinator, "camera")
         Camera.__init__(self)
+        self._allow_configured_stream = False
 
     async def stream_source(self) -> str | None:
         """Return the current FLV stream URL for ffmpeg."""
         if not self.is_streaming:
             return None
-        return self.coordinator.stream_url()
+        if (
+            stream_url := self.coordinator.stream_url(allow_configured=False)
+        ) is not None:
+            return stream_url
+        await self.hass.async_add_executor_job(self.coordinator.refresh_stream_url)
+        return self.coordinator.stream_url(
+            allow_configured=self._allow_configured_stream
+        )
 
     async def async_camera_image(
         self, width: int | None = None, height: int | None = None
@@ -57,16 +65,21 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
 
     async def async_turn_on(self) -> None:
         """Start camera capture."""
+        self._allow_configured_stream = False
         await self.hass.async_add_executor_job(self.coordinator.start_video)
         self._attr_is_streaming = True
         for _ in range(16):
-            if self.coordinator.stream_url() is not None:
+            if self.coordinator.stream_url(allow_configured=False) is not None:
                 break
+            await self.hass.async_add_executor_job(self.coordinator.refresh_stream_url)
             await asyncio.sleep(0.5)
+        else:
+            self._allow_configured_stream = True
         self.async_write_ha_state()
 
     async def async_turn_off(self) -> None:
         """Stop camera capture."""
         await self.hass.async_add_executor_job(self.coordinator.stop_video)
         self._attr_is_streaming = False
+        self._allow_configured_stream = False
         self.async_write_ha_state()
