@@ -31,7 +31,7 @@ const ANYCUBIC_IDLE_STATUS_TEXT = [
   "finish",
   "finished",
 ];
-const ANYCUBIC_DIAGNOSTIC_STATUS_TEXT = ["received"];
+const ANYCUBIC_DIAGNOSTIC_STATUS_TEXT = ["online", "pushstarted", "pushstopped", "received"];
 
 function anycubicEntityMatches(states) {
   const explicit = states.filter((state) => {
@@ -75,7 +75,6 @@ class AnycubicKobraXCard extends HTMLElement {
     this.attachShadow({ mode: "open" });
     this._config = {};
     this._hass = undefined;
-    this._cameraImage = undefined;
     this._cameraBusy = false;
   }
 
@@ -324,11 +323,6 @@ class AnycubicKobraXCard extends HTMLElement {
       : lightState
       ? `Turn ${lightIsOn ? "off" : "on"} printer light`
       : "Printer light entity not found";
-    const reusableCameraImage = this._cameraImage;
-    if (reusableCameraImage?.isConnected) {
-      reusableCameraImage.remove();
-    }
-
     this.shadowRoot.innerHTML = `
       <style>
         *, *::before, *::after {
@@ -508,6 +502,28 @@ class AnycubicKobraXCard extends HTMLElement {
           aspect-ratio: 16 / 9;
           display: block;
           width: 100%;
+        }
+
+        .camera-slot {
+          aspect-ratio: 16 / 9;
+          position: relative;
+          width: 100%;
+        }
+
+        .camera-slot hui-image {
+          height: 100%;
+        }
+
+        .camera-warmup {
+          align-items: center;
+          background: color-mix(in srgb, var(--secondary-background-color) 88%, transparent);
+          color: var(--secondary-text-color);
+          display: grid;
+          inset: 0;
+          justify-items: center;
+          padding: 14px;
+          position: absolute;
+          text-align: center;
         }
 
         .camera-placeholder {
@@ -846,7 +862,12 @@ class AnycubicKobraXCard extends HTMLElement {
             ` : ""}
             ${showCamera ? `
               <div class="media camera-media">
-                ${cameraIsStreaming ? `<div class="camera-slot"></div>` : `
+                ${cameraIsStreaming ? `
+                  <div class="camera-slot">
+                    <hui-image></hui-image>
+                    ${this._cameraBusy ? `<div class="camera-warmup">Starting stream</div>` : ""}
+                  </div>
+                ` : `
                   <div class="camera-placeholder">
                     <ha-icon icon="mdi:video-outline"></ha-icon>
                     <div>${this._escape(this._cameraBusy ? "Starting stream" : "Camera stopped")}</div>
@@ -880,13 +901,9 @@ class AnycubicKobraXCard extends HTMLElement {
       cameraButton.addEventListener("click", () => this._toggleCamera(cameraState));
     }
 
-    const cameraSlot = this.shadowRoot.querySelector(".camera-slot");
-    if (cameraSlot && cameraState) {
-      if (!this._cameraImage) {
-        this._cameraImage = document.createElement("hui-image");
-      }
-      cameraSlot.appendChild(this._cameraImage);
-      this._configureImage(this._cameraImage, cameraState);
+    const cameraImage = this.shadowRoot.querySelector(".camera-slot hui-image");
+    if (cameraImage && cameraState) {
+      this._configureImage(cameraImage, cameraState);
     }
   }
 
@@ -1091,7 +1108,10 @@ class AnycubicKobraXCard extends HTMLElement {
 
   _displayStatus(printState, lastWillState) {
     const printStatus = this._string(printState);
-    if (printStatus) {
+    if (this._isDiagnosticStatus(printStatus)) {
+      return "free";
+    }
+    if (printStatus && !this._isDiagnosticStatus(printStatus)) {
       return printStatus;
     }
     const lastWill = this._state(lastWillState);

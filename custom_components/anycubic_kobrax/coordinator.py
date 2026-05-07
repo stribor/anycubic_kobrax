@@ -629,7 +629,6 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "taskStatus",
                 "jobState",
                 "workState",
-                "state",
             ),
             ATTR_PRINTER_NAME: ("printerName", "printer_name", "deviceName"),
             ATTR_MODEL: ("model", "machineModel", "modelName"),
@@ -760,6 +759,11 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             value = _first_present(flat, keys)
             if value is not None:
                 self._state[attr] = value
+
+        if message_type in {"print", "buried"} or topic_tail in {"print", "buried"}:
+            print_state = _first_present(flat, ("state", "action"))
+            if print_state is not None:
+                self._state[ATTR_PRINT_STATE] = print_state
 
         light_status = _first_present(flat, ("lightStatus", "status"))
         light_brightness = _first_present(flat, ("brightness", "lightBrightness", "light"))
