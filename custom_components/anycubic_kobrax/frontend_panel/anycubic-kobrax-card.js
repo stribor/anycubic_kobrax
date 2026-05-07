@@ -160,6 +160,20 @@ class AnycubicKobraXCard extends HTMLElement {
           },
         },
         {
+          name: "media_view",
+          selector: {
+            select: {
+              mode: "dropdown",
+              options: [
+                { value: "preview", label: "Preview image" },
+                { value: "camera", label: "Camera stream" },
+                { value: "none", label: "None" },
+              ],
+            },
+          },
+        },
+        { name: "camera_entity", selector: { entity: { domain: "camera" } } },
+        {
           name: "visible_stats",
           selector: {
             select: {
@@ -211,6 +225,10 @@ class AnycubicKobraXCard extends HTMLElement {
             return "Hide progress when idle";
           case "hide_preview_when_idle":
             return "Hide preview when idle";
+          case "media_view":
+            return "Media view";
+          case "camera_entity":
+            return "Camera entity";
           case "visible_stats":
             return "Visible stats";
           case "stats_columns":
@@ -247,9 +265,17 @@ class AnycubicKobraXCard extends HTMLElement {
     const eta = isPrinting && remaining !== null
       ? this._formatClock(Date.now() + remaining * 1000)
       : "--";
-    const previewUrl = this._config.hide_preview_when_idle && isIdle
+    const mediaView = ["preview", "camera", "none"].includes(this._config.media_view)
+      ? this._config.media_view
+      : "preview";
+    const cameraState = this._entityFromConfig("camera_entity") || entities.camera;
+    const previewUrl = mediaView === "preview" && this._config.hide_preview_when_idle && isIdle
       ? ""
-      : this._previewImageUrl(get("preview_image"));
+      : mediaView === "preview"
+      ? this._previewImageUrl(get("preview_image"))
+      : "";
+    const showCamera = mediaView === "camera" && cameraState && !this._isUnavailable(cameraState);
+    const cameraIsStreaming = showCamera && cameraState.state === "streaming";
     const progressStyle = ["number", "bar", "hidden"].includes(this._config.progress_style)
       ? this._config.progress_style
       : "number";
@@ -259,6 +285,7 @@ class AnycubicKobraXCard extends HTMLElement {
     const showSlots = layout !== "compact" && this._config.show_slots !== false;
     const slotCards = showSlots ? [1, 2, 3, 4].map((slot) => this._renderSlot(slot, get)) : [];
     const showHeader = this._config.show_header !== false;
+    const hasMedia = Boolean(previewUrl || showCamera);
     const statValues = {
       status,
       eta,
@@ -433,22 +460,52 @@ class AnycubicKobraXCard extends HTMLElement {
           filter: drop-shadow(0 18px 24px rgba(0, 0, 0, 0.24));
           height: auto;
           max-height: ${layout === "compact" ? "86px" : "90px"};
-          max-width: ${previewUrl ? "35%" : "50%"};
+          max-width: ${hasMedia ? "35%" : "50%"};
           object-fit: contain;
         }
 
-        .preview-image {
+        .media {
+          align-items: center;
           background: var(--secondary-background-color);
           border: var(--ha-card-border-width, 1px) solid
             var(--ha-card-border-color, var(--divider-color, transparent));
           border-radius: 8px;
+          display: flex;
+          justify-content: center;
+          overflow: hidden;
+          width: min(62%, 220px);
+        }
+
+        .preview-image {
           display: block;
           height: auto;
           max-height: 180px;
           max-width: 100%;
           object-fit: contain;
-          overflow: hidden;
-          width: min(62%, 220px);
+          width: 100%;
+        }
+
+        .media hui-image {
+          aspect-ratio: 16 / 9;
+          display: block;
+          width: 100%;
+        }
+
+        .camera-placeholder {
+          align-items: center;
+          aspect-ratio: 16 / 9;
+          color: var(--secondary-text-color);
+          display: grid;
+          gap: 8px;
+          justify-items: center;
+          padding: 14px;
+          text-align: center;
+          width: 100%;
+        }
+
+        .camera-placeholder ha-icon {
+          height: 34px;
+          width: 34px;
         }
 
         .progress-number {
@@ -532,7 +589,7 @@ class AnycubicKobraXCard extends HTMLElement {
           min-height: 96px;
         }
 
-        .compact .preview-image {
+        .compact .media {
           max-height: 110px;
           width: min(62%, 180px);
         }
@@ -669,10 +726,10 @@ class AnycubicKobraXCard extends HTMLElement {
 
           .printer-image {
             max-height: ${layout === "compact" ? "104px" : "132px"};
-            max-width: ${previewUrl ? "36%" : "50%"};
+            max-width: ${hasMedia ? "36%" : "50%"};
           }
 
-          .preview-image {
+          .media {
             max-height: 265px;
             width: min(62%, 300px);
           }
@@ -699,7 +756,7 @@ class AnycubicKobraXCard extends HTMLElement {
             margin-bottom: 10px;
           }
 
-          .compact .preview-image {
+          .compact .media {
             max-height: 130px;
           }
 
@@ -747,11 +804,23 @@ class AnycubicKobraXCard extends HTMLElement {
           <div class="printer">
             <img class="printer-image" src="${this._escapeAttribute(imageUrl)}" alt="" />
             ${previewUrl ? `
-              <img
-                class="preview-image"
-                src="${this._escapeAttribute(previewUrl)}"
-                alt="Current print preview"
-              />
+              <div class="media">
+                <img
+                  class="preview-image"
+                  src="${this._escapeAttribute(previewUrl)}"
+                  alt="Current print preview"
+                />
+              </div>
+            ` : ""}
+            ${showCamera ? `
+              <div class="media camera-media">
+                ${cameraIsStreaming ? "<hui-image></hui-image>" : `
+                  <div class="camera-placeholder">
+                    <ha-icon icon="mdi:video-outline"></ha-icon>
+                    <div>Camera stopped</div>
+                  </div>
+                `}
+              </div>
             ` : ""}
           </div>
           <div class="summary">
@@ -773,10 +842,15 @@ class AnycubicKobraXCard extends HTMLElement {
     if (lightButton && !lightUnavailable) {
       lightButton.addEventListener("click", () => this._toggleLight(lightState));
     }
+
+    const cameraImage = this.shadowRoot.querySelector(".camera-media hui-image");
+    if (cameraImage && cameraState) {
+      this._configureImage(cameraImage, cameraState);
+    }
   }
 
   _entityFromConfig(key) {
-    const entityId = this._config.entities?.[key];
+    const entityId = this._config.entities?.[key] || this._config[key];
     return entityId ? this._hass.states[entityId] : undefined;
   }
 
@@ -793,6 +867,7 @@ class AnycubicKobraXCard extends HTMLElement {
       "nozzle_temperature",
       "bed_temperature",
       "fan_speed",
+      "camera",
       "layer",
       "total_layer",
       "filament_used",
@@ -809,6 +884,9 @@ class AnycubicKobraXCard extends HTMLElement {
   _findByKey(states, key) {
     if (key === "light") {
       return states.find((state) => state.entity_id?.startsWith("light."));
+    }
+    if (key === "camera") {
+      return states.find((state) => state.entity_id?.startsWith("camera."));
     }
     const normalizedKey = key.replaceAll("_", "");
     return states.find((state) => {
@@ -902,6 +980,16 @@ class AnycubicKobraXCard extends HTMLElement {
       return "";
     }
     return state.attributes?.entity_picture || "";
+  }
+
+  _configureImage(image, cameraState) {
+    image.hass = this._hass;
+    image.stateObj = cameraState;
+    image.cameraImage = cameraState.entity_id;
+    image.cameraView = this._config.camera_view || "live";
+    image.aspectRatio = "16:9";
+    image.showState = false;
+    image.showName = false;
   }
 
   _formatLayer(layerState, totalLayerState) {
@@ -1064,6 +1152,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
   set hass(hass) {
     this._hass = hass;
     if (this._updateStreamingView()) {
+      this._updateLightButton();
       return;
     }
     this._render();
@@ -1376,7 +1465,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     }
     const lightButton = this.shadowRoot.querySelector(".light");
     if (lightButton && !lightUnavailable) {
-      lightButton.addEventListener("click", () => this._toggleLight(lightState));
+      lightButton.addEventListener("click", () => this._toggleLight(lightState.entity_id));
     }
   }
 
@@ -1389,6 +1478,12 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     const states = Object.values(this._hass.states);
     const matches = this._findPrinterEntities(states);
     return this._entityFromConfig("camera_entity") || matches.camera;
+  }
+
+  _lightState() {
+    const states = Object.values(this._hass.states);
+    const matches = this._findPrinterEntities(states);
+    return this._entityFromConfig("light_entity") || matches.light;
   }
 
   _updateStreamingView() {
@@ -1406,6 +1501,24 @@ class AnycubicKobraXCameraCard extends HTMLElement {
       state.textContent = this._formatState(cameraState);
     }
     return true;
+  }
+
+  _updateLightButton() {
+    const lightButton = this.shadowRoot.querySelector(".light");
+    if (!lightButton) {
+      return;
+    }
+    const lightState = this._lightState();
+    const lightUnavailable = !lightState || this._isUnavailable(lightState);
+    const lightIsOn = lightState?.state === "on";
+    const lightTitle = lightUnavailable
+      ? "Printer light unavailable"
+      : `Turn ${lightIsOn ? "off" : "on"} printer light`;
+    lightButton.classList.toggle("active", lightIsOn);
+    lightButton.disabled = lightUnavailable;
+    lightButton.title = lightTitle;
+    lightButton.setAttribute("aria-label", lightTitle);
+    lightButton.innerHTML = `<ha-icon icon="${lightIsOn ? "mdi:lightbulb-on" : "mdi:lightbulb-outline"}"></ha-icon>`;
   }
 
   _configureImage(image, cameraState) {
@@ -1444,7 +1557,8 @@ class AnycubicKobraXCameraCard extends HTMLElement {
     }
   }
 
-  _toggleLight(lightState) {
+  _toggleLight(lightEntityId) {
+    const lightState = lightEntityId ? this._hass.states[lightEntityId] : this._lightState();
     if (!lightState || this._isUnavailable(lightState)) {
       return;
     }
