@@ -36,6 +36,18 @@
       }
     }
   },
+  "device_automation": {
+    "trigger_type": {
+      "axis_error": "Axis error",
+      "print_started": "Print started",
+      "print_preheating": "Print preheating",
+      "print_printing": "Print printing",
+      "print_completed": "Print completed",
+      "print_paused": "Print paused",
+      "print_stopped": "Print stopped",
+      "print_failed": "Print failed"
+    }
+  },
   "entity": {
     "sensor": {
       "last_will": {

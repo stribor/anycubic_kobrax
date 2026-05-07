@@ -94,6 +94,68 @@ hide_preview_when_idle: true
 show_header: false
 ```
 
+## Notifications and automations
+
+The integration does not send notifications by itself. Instead it exposes print
+lifecycle events so each Home Assistant user can choose their own notification
+target, such as the mobile app, persistent notifications, a speaker, or a light.
+
+The printer event entity emits these event types:
+
+- `print_started`
+- `print_preheating`
+- `print_printing`
+- `print_completed`
+- `print_paused`
+- `print_stopped`
+- `print_failed`
+- `axis_error`
+
+To notify a phone when a print finishes, create an automation similar to this
+and replace `event.kobra_x_printer_event` and `notify.mobile_app_your_phone`
+with your entity and notification target:
+
+```yaml
+alias: Anycubic print finished
+triggers:
+  - trigger: state
+    entity_id: event.kobra_x_printer_event
+    attribute: event_type
+    to: print_completed
+actions:
+  - action: notify.mobile_app_your_phone
+    data:
+      title: Print finished
+      message: >-
+        {{ state_attr('event.kobra_x_printer_event', 'filename')
+           or 'Your Anycubic print is done.' }}
+```
+
+For a failed print notification:
+
+```yaml
+alias: Anycubic print failed
+triggers:
+  - trigger: state
+    entity_id: event.kobra_x_printer_event
+    attribute: event_type
+    to: print_failed
+actions:
+  - action: notify.mobile_app_your_phone
+    data:
+      title: Print failed
+      message: >-
+        {{ state_attr('event.kobra_x_printer_event', 'message')
+           or state_attr('event.kobra_x_printer_event', 'filename')
+           or 'The printer reported a failure.' }}
+```
+
+The same events are also available as device triggers in the automation UI. When
+creating an automation, choose the Anycubic printer as the device, then select a
+trigger such as **Print completed**, **Print failed**, or **Axis error**. Device
+triggers are a UI-friendly wrapper around the integration's printer events; they
+do not send notifications on their own.
+
 ## Still to improve
 
 - SSDP/mDNS discovery for `uuid:fdm:...`

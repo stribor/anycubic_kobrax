@@ -1055,12 +1055,22 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
     def _record_event(self, event_type: str, data: dict[str, Any]) -> None:
         """Store the latest event for the event entity to fire."""
+        event_data = {key: value for key, value in data.items() if value is not None}
         self._event_sequence += 1
         self.latest_event = {
             "sequence": self._event_sequence,
             "event_type": event_type,
-            "data": {key: value for key, value in data.items() if value is not None},
+            "data": event_data,
         }
+        self.hass.bus.async_fire(
+            f"{DOMAIN}_printer_event",
+            {
+                "entry_id": self.entry.entry_id,
+                "printer_id": self.device.printer_id,
+                "type": event_type,
+                **event_data,
+            },
+        )
 
     def _convert_print_minutes_to_seconds(self, data: dict[str, Any]) -> None:
         """Convert Anycubic print_time/remain_time minutes to HA seconds."""
