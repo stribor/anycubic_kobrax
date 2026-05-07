@@ -125,6 +125,48 @@
       "slicer": {
         "name": "Slicer"
       },
+      "slicer_version": {
+        "name": "Slicer version"
+      },
+      "app_version": {
+        "name": "App version"
+      },
+      "printer_type": {
+        "name": "Printer type"
+      },
+      "bed_leveling": {
+        "name": "Bed leveling"
+      },
+      "flow_calibration": {
+        "name": "Flow calibration"
+      },
+      "foreign_object_detection": {
+        "name": "Foreign object detection"
+      },
+      "spaghetti_detection": {
+        "name": "Spaghetti detection"
+      },
+      "time_lapse": {
+        "name": "Time lapse"
+      },
+      "print_filaments": {
+        "name": "Print filaments"
+      },
+      "slice_filaments": {
+        "name": "Slice filaments"
+      },
+      "print_filaments_weight": {
+        "name": "Print filaments weight"
+      },
+      "storage_total": {
+        "name": "Storage total"
+      },
+      "storage_used": {
+        "name": "Storage used"
+      },
+      "print_params": {
+        "name": "Print params"
+      },
       "print_speed": {
         "name": "Print speed"
       },

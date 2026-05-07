@@ -31,7 +31,9 @@ from .const import (
     ATTR_AXIS_CODE,
     ATTR_AXIS_MESSAGE,
     ATTR_AXIS_STATE,
+    ATTR_APP_VERSION,
     ATTR_BED_TEMP,
+    ATTR_BED_LEVELING,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
     ATTR_DEVICE_CN,
@@ -44,6 +46,8 @@ from .const import (
     ATTR_FILAMENT_USED,
     ATTR_FILE_ROOT,
     ATTR_FIRMWARE_VERSION,
+    ATTR_FLOW_CALIBRATION,
+    ATTR_FOREIGN_OBJECT_DETECTION,
     ATTR_GCODE_SIZE,
     ATTR_IP_ADDRESS,
     ATTR_LAYER,
@@ -59,13 +63,19 @@ from .const import (
     ATTR_MULTI_COLOR_BOX_STATUS,
     ATTR_MULTI_COLOR_BOX_TEMP,
     ATTR_NOZZLE_TEMP,
+    ATTR_PRINT_FILAMENTS,
+    ATTR_PRINT_FILAMENTS_WEIGHT,
+    ATTR_PRINT_PARAMS,
     ATTR_PRINTER_NAME,
+    ATTR_PRINTER_TYPE,
     ATTR_PRINT_STATE,
     ATTR_PRINT_SPEED,
     ATTR_PRINT_SPEED_MODE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
     ATTR_SLICER,
+    ATTR_SLICER_VERSION,
+    ATTR_SLICE_FILAMENTS,
     ATTR_SLOT_COLOR,
     ATTR_SLOT_COLOR_ALPHA,
     ATTR_SLOT_COLOR_RGB,
@@ -74,6 +84,9 @@ from .const import (
     ATTR_SLOT_STATUS,
     ATTR_SLOT_TYPE,
     ATTR_SLOT_WEIGHT,
+    ATTR_SPAGHETTI_DETECTION,
+    ATTR_STORAGE_TOTAL,
+    ATTR_STORAGE_USED,
     ATTR_STREAM_URL,
     ATTR_SUPPLIES_USAGE,
     ATTR_TARGET_BED_TEMP,
@@ -81,6 +94,7 @@ from .const import (
     ATTR_TASK_ID,
     ATTR_TOTAL_TIME,
     ATTR_TOTAL_LAYER,
+    ATTR_TIME_LAPSE,
     ATTR_USB_DISK,
     ATTR_VIDEO_STATE,
     ATTR_WIFI_SIGNAL,
@@ -115,6 +129,20 @@ _LOGGER = logging.getLogger(__name__)
 _LIVE_URL_RE = re.compile(r"https?://[^\s\"']+/live/[A-Za-z0-9_-]+")
 _LIVE_PATH_RE = re.compile(r"/live/[A-Za-z0-9_-]+")
 _HOME_AXIS_MAP = {"xy": 4, "z": 3, "xyz": 5}
+_FILAMENT_DIAMETER_MM = 1.75
+_FILAMENT_DENSITY_G_CM3 = {
+    "abs": 1.04,
+    "asa": 1.07,
+    "hips": 1.04,
+    "pa": 1.14,
+    "pc": 1.20,
+    "pet": 1.27,
+    "petg": 1.27,
+    "pla": 1.23,
+    "pva": 1.23,
+    "tpu": 1.21,
+}
+_DEFAULT_FILAMENT_DENSITY_G_CM3 = _FILAMENT_DENSITY_G_CM3["pla"]
 
 
 @dataclass(slots=True)
@@ -666,6 +694,20 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_GCODE_SIZE: ("gcode_size",),
             ATTR_WIFI_SIGNAL: ("wifi_signal",),
             ATTR_SLICER: ("slicer",),
+            ATTR_SLICER_VERSION: ("software_version",),
+            ATTR_APP_VERSION: ("app_version",),
+            ATTR_PRINTER_TYPE: ("printer_type",),
+            ATTR_BED_LEVELING: ("bed_leveling",),
+            ATTR_FLOW_CALIBRATION: ("flow_calibration",),
+            ATTR_FOREIGN_OBJECT_DETECTION: ("foreign_object_detection",),
+            ATTR_SPAGHETTI_DETECTION: ("spaghetti_detection",),
+            ATTR_TIME_LAPSE: ("time_lapse",),
+            ATTR_PRINT_FILAMENTS: ("print_filaments",),
+            ATTR_SLICE_FILAMENTS: ("slice_filaments",),
+            ATTR_PRINT_FILAMENTS_WEIGHT: ("print_filaments_weight",),
+            ATTR_STORAGE_TOTAL: ("storage_total",),
+            ATTR_STORAGE_USED: ("storage_used",),
+            ATTR_PRINT_PARAMS: ("params",),
             ATTR_SUPPLIES_USAGE: ("supplies_usage",),
             ATTR_PRINT_SPEED: (
                 "printSpeed",
@@ -793,6 +835,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_ESTIMATE_DURATION,
             ATTR_GCODE_SIZE,
             ATTR_WIFI_SIGNAL,
+            ATTR_PRINT_FILAMENTS_WEIGHT,
+            ATTR_STORAGE_TOTAL,
+            ATTR_STORAGE_USED,
             ATTR_PRINT_SPEED,
             ATTR_PRINT_SPEED_MODE,
             ATTR_REMAINING_TIME,
@@ -986,6 +1031,20 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_WIFI_SIGNAL: ("wifi_signal",),
             ATTR_MATERIAL: ("print_filaments", "slice_filaments"),
             ATTR_SLICER: ("slicer",),
+            ATTR_SLICER_VERSION: ("software_version",),
+            ATTR_APP_VERSION: ("app_version",),
+            ATTR_PRINTER_TYPE: ("printer_type",),
+            ATTR_BED_LEVELING: ("bed_leveling",),
+            ATTR_FLOW_CALIBRATION: ("flow_calibration",),
+            ATTR_FOREIGN_OBJECT_DETECTION: ("foreign_object_detection",),
+            ATTR_SPAGHETTI_DETECTION: ("spaghetti_detection",),
+            ATTR_TIME_LAPSE: ("time_lapse",),
+            ATTR_PRINT_FILAMENTS: ("print_filaments",),
+            ATTR_SLICE_FILAMENTS: ("slice_filaments",),
+            ATTR_PRINT_FILAMENTS_WEIGHT: ("print_filaments_weight",),
+            ATTR_STORAGE_TOTAL: ("storage_total",),
+            ATTR_STORAGE_USED: ("storage_used",),
+            ATTR_PRINT_PARAMS: ("params",),
         }
         for attr, keys in mappings.items():
             value = _first_present(data, keys)
@@ -996,9 +1055,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if isinstance(source_info, dict):
             version = source_info.get("software_version")
             if version:
-                self._state[ATTR_SLICER] = version
+                self._state[ATTR_SLICER_VERSION] = version
 
         self._convert_print_minutes_to_seconds(data)
+        self._derive_filament_usage_from_supplies()
         self._derive_print_estimates()
         self._record_print_event(payload, data)
         if filename := self._state.get(ATTR_FILENAME):
@@ -1032,6 +1092,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 self._state[attr] = value
 
         self._convert_print_minutes_to_seconds(project)
+        self._derive_filament_usage_from_supplies()
         self._derive_print_estimates()
         self._record_print_event(payload, project)
         if filename := self._state.get(ATTR_FILENAME):
@@ -1149,6 +1210,25 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             filament_used = _coerce_float(self._state.get(ATTR_FILAMENT_USED))
             if filament_used is not None:
                 self._state[ATTR_ESTIMATE_WEIGHT] = filament_used
+
+    def _derive_filament_usage_from_supplies(self) -> None:
+        """Convert Anycubic live filament length in mm to grams."""
+        supplies_usage = _coerce_float(self._state.get(ATTR_SUPPLIES_USAGE))
+        if supplies_usage is None:
+            return
+
+        material = str(
+            self._state.get(ATTR_PRINT_FILAMENTS)
+            or self._state.get(ATTR_MATERIAL)
+            or self._state.get(ATTR_SLICE_FILAMENTS)
+            or ""
+        )
+        density = _filament_density(material)
+        radius_mm = _FILAMENT_DIAMETER_MM / 2
+        volume_cm3 = (
+            3.141592653589793 * radius_mm * radius_mm * supplies_usage / 1000
+        )
+        self._state[ATTR_FILAMENT_USED] = round(volume_cm3 * density, 2)
 
     def _extract_stream_url(self, text: str, payload: Any) -> str | None:
         """Find a /live/ camera URL or path in MQTT data."""
@@ -1281,6 +1361,15 @@ def _coerce_float(value: Any) -> float | None:
         return float(value)
     except (TypeError, ValueError):
         return None
+
+
+def _filament_density(material: str) -> float:
+    """Return filament density in g/cm3 for a material label."""
+    normalized = material.lower()
+    for key, density in _FILAMENT_DENSITY_G_CM3.items():
+        if key in normalized:
+            return density
+    return _DEFAULT_FILAMENT_DENSITY_G_CM3
 
 
 def _distance_payload(value: float) -> int | float:

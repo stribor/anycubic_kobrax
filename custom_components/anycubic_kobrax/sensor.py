@@ -22,7 +22,9 @@ from .const import (
     ATTR_AXIS_CODE,
     ATTR_AXIS_MESSAGE,
     ATTR_AXIS_STATE,
+    ATTR_APP_VERSION,
     ATTR_BED_TEMP,
+    ATTR_BED_LEVELING,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
     ATTR_DEVICE_CN,
@@ -35,6 +37,8 @@ from .const import (
     ATTR_FILAMENT_USED,
     ATTR_FILE_ROOT,
     ATTR_FIRMWARE_VERSION,
+    ATTR_FLOW_CALIBRATION,
+    ATTR_FOREIGN_OBJECT_DETECTION,
     ATTR_GCODE_SIZE,
     ATTR_IP_ADDRESS,
     ATTR_LAST_TOPIC,
@@ -49,13 +53,19 @@ from .const import (
     ATTR_MULTI_COLOR_BOX_STATUS,
     ATTR_MULTI_COLOR_BOX_TEMP,
     ATTR_NOZZLE_TEMP,
+    ATTR_PRINT_FILAMENTS,
+    ATTR_PRINT_FILAMENTS_WEIGHT,
+    ATTR_PRINT_PARAMS,
     ATTR_PRINTER_NAME,
+    ATTR_PRINTER_TYPE,
     ATTR_PRINT_STATE,
     ATTR_PRINT_SPEED,
     ATTR_PRINT_SPEED_MODE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
     ATTR_SLICER,
+    ATTR_SLICER_VERSION,
+    ATTR_SLICE_FILAMENTS,
     ATTR_SLOT_COLOR,
     ATTR_SLOT_COLOR_ALPHA,
     ATTR_SLOT_COLOR_RGB,
@@ -64,12 +74,16 @@ from .const import (
     ATTR_SLOT_STATUS,
     ATTR_SLOT_TYPE,
     ATTR_SLOT_WEIGHT,
+    ATTR_SPAGHETTI_DETECTION,
+    ATTR_STORAGE_TOTAL,
+    ATTR_STORAGE_USED,
     ATTR_SUPPLIES_USAGE,
     ATTR_TARGET_BED_TEMP,
     ATTR_TARGET_NOZZLE_TEMP,
     ATTR_TASK_ID,
     ATTR_TOTAL_LAYER,
     ATTR_TOTAL_TIME,
+    ATTR_TIME_LAPSE,
     ATTR_USB_DISK,
     ATTR_VIDEO_STATE,
     ATTR_WIFI_SIGNAL,
@@ -139,6 +153,7 @@ SENSORS = (
     AnycubicSensorDescription(
         key=ATTR_SUPPLIES_USAGE,
         translation_key="supplies_usage",
+        native_unit_of_measurement="mm",
     ),
     AnycubicSensorDescription(
         key=ATTR_ESTIMATE_DURATION,
@@ -161,6 +176,52 @@ SENSORS = (
         native_unit_of_measurement="dBm",
     ),
     AnycubicSensorDescription(key=ATTR_SLICER, translation_key="slicer"),
+    AnycubicSensorDescription(
+        key=ATTR_SLICER_VERSION, translation_key="slicer_version"
+    ),
+    AnycubicSensorDescription(key=ATTR_APP_VERSION, translation_key="app_version"),
+    AnycubicSensorDescription(key=ATTR_PRINTER_TYPE, translation_key="printer_type"),
+    AnycubicSensorDescription(key=ATTR_BED_LEVELING, translation_key="bed_leveling"),
+    AnycubicSensorDescription(
+        key=ATTR_FLOW_CALIBRATION, translation_key="flow_calibration"
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_FOREIGN_OBJECT_DETECTION,
+        translation_key="foreign_object_detection",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_SPAGHETTI_DETECTION, translation_key="spaghetti_detection"
+    ),
+    AnycubicSensorDescription(key=ATTR_TIME_LAPSE, translation_key="time_lapse"),
+    AnycubicSensorDescription(
+        key=ATTR_PRINT_FILAMENTS, translation_key="print_filaments"
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_SLICE_FILAMENTS, translation_key="slice_filaments"
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_PRINT_FILAMENTS_WEIGHT,
+        translation_key="print_filaments_weight",
+        native_unit_of_measurement="g",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_STORAGE_TOTAL,
+        translation_key="storage_total",
+        native_unit_of_measurement="MB",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_STORAGE_USED,
+        translation_key="storage_used",
+        native_unit_of_measurement="MB",
+        entity_category=EntityCategory.DIAGNOSTIC,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_PRINT_PARAMS,
+        translation_key="print_params",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
     AnycubicSensorDescription(
         key=ATTR_PRINT_SPEED,
         translation_key="print_speed",
