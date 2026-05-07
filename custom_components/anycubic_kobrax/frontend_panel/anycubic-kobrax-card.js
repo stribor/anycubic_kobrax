@@ -77,18 +77,17 @@ class AnycubicKobraXCard extends HTMLElement {
     this._hass = undefined;
     this._cameraBusy = false;
     this._cameraImage = undefined;
+    this._lastRenderSignature = "";
   }
 
   setConfig(config) {
     this._config = config || {};
+    this._lastRenderSignature = "";
     this._render();
   }
 
   set hass(hass) {
     this._hass = hass;
-    if (this._updateStreamingView()) {
-      return;
-    }
     this._render();
   }
 
@@ -327,6 +326,42 @@ class AnycubicKobraXCard extends HTMLElement {
       : lightState
       ? `Turn ${lightIsOn ? "off" : "on"} printer light`
       : "Printer light entity not found";
+    const renderSignature = this._renderSignature({
+      cameraBusy: this._cameraBusy,
+      cameraEntity: cameraState?.entity_id || "",
+      cameraIsStreaming,
+      compactMeta,
+      eta,
+      hasMedia,
+      hideProgress,
+      imageUrl,
+      isIdle,
+      layout,
+      lightEntity: lightState?.entity_id || "",
+      lightIsOn,
+      lightUnavailable,
+      mediaView,
+      previewUrl,
+      progress: this._formatPercent(progress),
+      progressStyle,
+      rawStatus,
+      remaining: this._formatDuration(remaining, false),
+      showCamera: Boolean(showCamera),
+      showHeader,
+      showSlots,
+      slotCards,
+      statValues,
+      statsColumns,
+      title,
+      visibleStats,
+    });
+    if (renderSignature === this._lastRenderSignature && this.shadowRoot.querySelector("ha-card")) {
+      this._updateStreamingView();
+      this._updateCameraButton(cameraState);
+      this._updateLightButton(lightState);
+      return;
+    }
+    this._lastRenderSignature = renderSignature;
     const reusableCameraImage = this._cameraImage;
     if (reusableCameraImage?.isConnected) {
       reusableCameraImage.remove();
@@ -938,6 +973,10 @@ class AnycubicKobraXCard extends HTMLElement {
     const states = Object.values(this._hass?.states || {});
     const entities = this._findPrinterEntities(states);
     return this._entityFromConfig(configKey) || entities[matchKey];
+  }
+
+  _renderSignature(parts) {
+    return JSON.stringify(parts);
   }
 
   _updateStreamingView() {

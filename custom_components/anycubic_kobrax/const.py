@@ -8,7 +8,7 @@ DATA_SERVICE_REGISTERED = "services_registered"
 
 FRONTEND_FOLDER = "frontend_panel"
 CARD_FILENAME = "anycubic-kobrax-card.js"
-CARD_VERSION = "0.1.21"
+CARD_VERSION = "0.1.22"
 
 CONF_HOST = "host"
 CONF_TYPE_ID = "type_id"
