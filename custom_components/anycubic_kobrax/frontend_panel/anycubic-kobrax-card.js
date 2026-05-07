@@ -1224,8 +1224,8 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _renderPrintControls(pauseButton, stopButton, isPaused) {
-    const pauseUnavailable = !pauseButton || this._isUnavailable(pauseButton);
-    const stopUnavailable = !stopButton || this._isUnavailable(stopButton);
+    const pauseUnavailable = this._isPrintButtonUnavailable(pauseButton);
+    const stopUnavailable = this._isPrintButtonUnavailable(stopButton);
     const pauseTitle = pauseUnavailable
       ? `${isPaused ? "Resume" : "Pause"} button unavailable`
       : `${isPaused ? "Resume" : "Pause"} print`;
@@ -1376,6 +1376,10 @@ class AnycubicKobraXCard extends HTMLElement {
 
   _isUnavailable(state) {
     return state.state === "unknown" || state.state === "unavailable";
+  }
+
+  _isPrintButtonUnavailable(state) {
+    return !state || state.state === "unavailable";
   }
 
   _isIdle(status, progress, remaining) {
