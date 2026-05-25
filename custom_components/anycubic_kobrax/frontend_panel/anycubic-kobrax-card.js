@@ -69,6 +69,340 @@ function anycubicCameraCardDefaults(hass) {
   };
 }
 
+class AnycubicKobraXCardEditor extends HTMLElement {
+  constructor() {
+    super();
+    this.attachShadow({ mode: "open" });
+    this._config = {};
+    this._hass = undefined;
+  }
+
+  setConfig(config) {
+    this._config = config || {};
+    this._render();
+  }
+
+  set hass(hass) {
+    this._hass = hass;
+    this._render();
+  }
+
+  _render() {
+    const cameraEntities = Object.values(this._hass?.states || {})
+      .filter((state) => state.entity_id?.startsWith("camera."))
+      .sort((a, b) => a.entity_id.localeCompare(b.entity_id));
+    const selectedCamera = this._config.camera_entity || "";
+    const cameraOptions = [
+      `<option value="">Auto-detect</option>`,
+      ...cameraEntities.map((state) => `
+        <option value="${this._escapeAttribute(state.entity_id)}" ${state.entity_id === selectedCamera ? "selected" : ""}>
+          ${this._escape(state.attributes?.friendly_name || state.entity_id)}
+        </option>
+      `),
+    ];
+    if (selectedCamera && !cameraEntities.some((state) => state.entity_id === selectedCamera)) {
+      cameraOptions.push(`
+        <option value="${this._escapeAttribute(selectedCamera)}" selected>
+          ${this._escape(selectedCamera)}
+        </option>
+      `);
+    }
+
+    this.shadowRoot.innerHTML = `
+      <style>
+        *, *::before, *::after {
+          box-sizing: border-box;
+        }
+
+        :host {
+          color: var(--primary-text-color);
+          display: block;
+          font-family: var(--ha-font-family-body, inherit);
+        }
+
+        .form {
+          display: grid;
+          gap: 16px;
+          padding-top: 4px;
+        }
+
+        .field {
+          display: grid;
+          gap: 6px;
+        }
+
+        .label,
+        .check {
+          color: var(--primary-text-color);
+          font-size: 0.95rem;
+          font-weight: 500;
+          line-height: 1.3;
+        }
+
+        .check {
+          align-items: center;
+          cursor: pointer;
+          display: flex;
+          gap: 10px;
+          min-height: 32px;
+        }
+
+        .stats {
+          display: grid;
+          gap: 8px;
+          grid-template-columns: repeat(auto-fit, minmax(130px, 1fr));
+        }
+
+        input,
+        select {
+          background: var(--input-fill-color, var(--card-background-color, #fff));
+          border: 1px solid var(--input-idle-line-color, var(--divider-color, #d0d0d0));
+          border-radius: 4px;
+          color: var(--primary-text-color);
+          font: inherit;
+          min-height: 40px;
+          padding: 8px 10px;
+          width: 100%;
+        }
+
+        input[type="checkbox"] {
+          accent-color: var(--accent-color);
+          flex: 0 0 auto;
+          min-height: 18px;
+          padding: 0;
+          width: 18px;
+        }
+
+        input:focus,
+        select:focus {
+          border-color: var(--accent-color);
+          outline: none;
+        }
+
+        .section {
+          border-top: 1px solid var(--divider-color);
+          display: grid;
+          gap: 10px;
+          padding-top: 14px;
+        }
+
+        .section-title {
+          color: var(--secondary-text-color);
+          font-size: 0.85rem;
+          font-weight: 600;
+          letter-spacing: 0;
+          text-transform: uppercase;
+        }
+      </style>
+
+      <div class="form">
+        ${this._textField("name", "Name")}
+        ${this._textField("image", "Image URL")}
+        ${this._selectField("layout", "Layout", [
+          ["full", "Full"],
+          ["compact", "Compact"],
+        ], "full")}
+        ${this._selectField("progress_style", "Progress style", [
+          ["number", "Large number"],
+          ["bar", "Progress bar"],
+          ["hidden", "Hidden"],
+        ], "number")}
+        ${this._selectField("media_view", "Media view", [
+          ["preview", "Preview image"],
+          ["thumbnail", "Thumbnail image"],
+          ["camera", "Camera stream"],
+          ["none", "None"],
+        ], "preview")}
+
+        <label class="field">
+          <span class="label">Camera entity</span>
+          <select data-key="camera_entity">${cameraOptions.join("")}</select>
+        </label>
+
+        <div class="section">
+          <div class="section-title">Visibility</div>
+          ${this._checkboxField("hide_progress_when_idle", "Hide progress when idle", this._config.hide_progress_when_idle !== false)}
+          ${this._checkboxField("hide_preview_when_idle", "Hide preview when idle", this._config.hide_preview_when_idle === true)}
+          ${this._checkboxField("show_slots", "Show filament slots", this._config.show_slots !== false)}
+          ${this._checkboxField("show_header", "Show header", this._config.show_header !== false)}
+          ${this._checkboxField("show_pause_button", "Show pause button", this._config.show_pause_button !== false)}
+          ${this._checkboxField("show_stop_button", "Show stop button", this._config.show_stop_button !== false)}
+        </div>
+
+        <div class="section">
+          <div class="section-title">Stats</div>
+          ${this._selectField("stats_columns", "Stats columns", [
+            ["1", "1 column"],
+            ["2", "2 columns"],
+          ], "1")}
+          <div class="stats">
+            ${Object.entries(ANYCUBIC_STAT_LABELS).map(([key, label]) => this._statCheckbox(key, label)).join("")}
+          </div>
+        </div>
+      </div>
+    `;
+
+    this.shadowRoot.querySelectorAll("input[data-key], select[data-key]").forEach((input) => {
+      input.addEventListener("change", () => this._valueChanged(input));
+    });
+    this.shadowRoot.querySelectorAll("input[data-stat]").forEach((input) => {
+      input.addEventListener("change", () => this._statsChanged());
+    });
+  }
+
+  _textField(key, label) {
+    return `
+      <label class="field">
+        <span class="label">${this._escape(label)}</span>
+        <input data-key="${this._escapeAttribute(key)}" value="${this._escapeAttribute(this._config[key] || "")}">
+      </label>
+    `;
+  }
+
+  _selectField(key, label, options, defaultValue) {
+    const selected = this._config[key] === undefined ? defaultValue : String(this._config[key]);
+    return `
+      <label class="field">
+        <span class="label">${this._escape(label)}</span>
+        <select data-key="${this._escapeAttribute(key)}">
+          ${options.map(([value, optionLabel]) => `
+            <option value="${this._escapeAttribute(value)}" ${String(value) === selected ? "selected" : ""}>
+              ${this._escape(optionLabel)}
+            </option>
+          `).join("")}
+        </select>
+      </label>
+    `;
+  }
+
+  _checkboxField(key, label, checked) {
+    return `
+      <label class="check">
+        <input data-key="${this._escapeAttribute(key)}" type="checkbox" ${checked ? "checked" : ""}>
+        <span>${this._escape(label)}</span>
+      </label>
+    `;
+  }
+
+  _statCheckbox(key, label) {
+    const visible = this._visibleStats();
+    return `
+      <label class="check">
+        <input data-stat="${this._escapeAttribute(key)}" type="checkbox" ${visible.includes(key) ? "checked" : ""}>
+        <span>${this._escape(label)}</span>
+      </label>
+    `;
+  }
+
+  _valueChanged(input) {
+    const config = { ...this._config };
+    const key = input.dataset.key;
+    if (!key) {
+      return;
+    }
+
+    if (input.type === "checkbox") {
+      this._setBoolean(config, key, input.checked);
+    } else if (key === "stats_columns") {
+      this._setDefaulted(config, key, input.value === "2" ? 2 : undefined);
+    } else {
+      const defaults = {
+        layout: "full",
+        progress_style: "number",
+        media_view: "preview",
+      };
+      const value = input.value.trim();
+      if (!value || defaults[key] === value) {
+        delete config[key];
+      } else {
+        config[key] = value;
+      }
+    }
+    this._emitConfig(config);
+  }
+
+  _statsChanged() {
+    const selected = Array.from(this.shadowRoot.querySelectorAll("input[data-stat]:checked"))
+      .map((input) => input.dataset.stat)
+      .filter((key) => key in ANYCUBIC_STAT_LABELS);
+    const config = { ...this._config };
+    if (this._sameArray(selected, ANYCUBIC_DEFAULT_STATS)) {
+      delete config.visible_stats;
+    } else {
+      config.visible_stats = selected;
+    }
+    this._emitConfig(config);
+  }
+
+  _setBoolean(config, key, checked) {
+    const defaultTrue = [
+      "hide_progress_when_idle",
+      "show_slots",
+      "show_header",
+      "show_pause_button",
+      "show_stop_button",
+    ];
+    if (defaultTrue.includes(key)) {
+      if (checked) {
+        delete config[key];
+      } else {
+        config[key] = false;
+      }
+      return;
+    }
+    if (checked) {
+      config[key] = true;
+    } else {
+      delete config[key];
+    }
+  }
+
+  _setDefaulted(config, key, value) {
+    if (value === undefined || value === null || value === "") {
+      delete config[key];
+    } else {
+      config[key] = value;
+    }
+  }
+
+  _visibleStats() {
+    return Array.isArray(this._config.visible_stats)
+      ? this._config.visible_stats.filter((key) => key in ANYCUBIC_STAT_LABELS)
+      : ANYCUBIC_DEFAULT_STATS;
+  }
+
+  _sameArray(left, right) {
+    return left.length === right.length && left.every((value, index) => value === right[index]);
+  }
+
+  _emitConfig(config) {
+    this._config = config;
+    this.dispatchEvent(new CustomEvent("config-changed", {
+      bubbles: true,
+      composed: true,
+      detail: { config },
+    }));
+  }
+
+  _escape(value) {
+    return String(value).replace(/[&<>"']/g, (char) => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    })[char]);
+  }
+
+  _escapeAttribute(value) {
+    return this._escape(value).replace(/`/g, "&#96;");
+  }
+}
+
+if (!customElements.get("anycubic-kobrax-card-editor")) {
+  customElements.define("anycubic-kobrax-card-editor", AnycubicKobraXCardEditor);
+}
+
 class AnycubicKobraXCard extends HTMLElement {
   constructor() {
     super();
@@ -111,6 +445,10 @@ class AnycubicKobraXCard extends HTMLElement {
         rows: "auto",
       },
     };
+  }
+
+  static getConfigElement() {
+    return document.createElement("anycubic-kobrax-card-editor");
   }
 
   static getConfigForm() {
