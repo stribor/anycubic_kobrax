@@ -32,6 +32,7 @@ const ANYCUBIC_IDLE_STATUS_TEXT = [
   "finished",
 ];
 const ANYCUBIC_DIAGNOSTIC_STATUS_TEXT = ["online", "pushstarted", "pushstopped", "received"];
+const ANYCUBIC_PRINTING_STATUS_TEXT = ["updated", "resuming", "resumed"];
 
 function anycubicEntityMatches(states) {
   const explicit = states.filter((state) => {
@@ -1803,6 +1804,9 @@ class AnycubicKobraXCard extends HTMLElement {
   _formatStatus(status) {
     if (!status) {
       return "--";
+    }
+    if (ANYCUBIC_PRINTING_STATUS_TEXT.includes(String(status).toLowerCase())) {
+      return "Printing";
     }
     return status
       .replaceAll("_", " ")

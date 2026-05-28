@@ -803,12 +803,14 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for attr, keys in field_map.items():
             value = _first_present(flat, keys)
             if value is not None:
-                self._state[attr] = value
+                self._state[attr] = (
+                    _normalize_print_state(value) if attr == ATTR_PRINT_STATE else value
+                )
 
         if message_type in {"print", "buried"} or topic_tail in {"print", "buried"}:
             print_state = _first_present(flat, ("state", "action"))
             if print_state is not None:
-                self._state[ATTR_PRINT_STATE] = print_state
+                self._state[ATTR_PRINT_STATE] = _normalize_print_state(print_state)
 
         light_status = _first_present(flat, ("lightStatus", "status"))
         light_brightness = _first_present(flat, ("brightness", "lightBrightness", "light"))
@@ -1010,7 +1012,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Merge print lifecycle and buried metadata."""
         state = payload.get("state")
         if state:
-            self._state[ATTR_PRINT_STATE] = state
+            self._state[ATTR_PRINT_STATE] = _normalize_print_state(state)
 
         data = payload.get("data")
         if not isinstance(data, dict):
@@ -1089,7 +1091,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         for attr, keys in mappings.items():
             value = _first_present(project, keys)
             if value is not None:
-                self._state[attr] = value
+                self._state[attr] = (
+                    _normalize_print_state(value) if attr == ATTR_PRINT_STATE else value
+                )
 
         self._convert_print_minutes_to_seconds(project)
         self._derive_filament_usage_from_supplies()
@@ -1341,6 +1345,13 @@ def _coerce_last_will(flat: Mapping[str, Any]) -> str:
             return "online" if value else "offline"
         return str(value)
     return "received"
+
+
+def _normalize_print_state(state: Any) -> Any:
+    """Convert protocol lifecycle markers to user-facing printer states."""
+    if str(state).lower() in {"updated", "resuming", "resumed"}:
+        return "printing"
+    return state
 
 
 def _coerce_int(value: Any) -> int | None:
