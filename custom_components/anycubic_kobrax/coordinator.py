@@ -801,6 +801,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_TOTAL_LAYER: ("total_layers", "totalLayer", "totalLayers", "layerCount"),
         }
         for attr, keys in field_map.items():
+            if attr == ATTR_TOTAL_TIME and "print_time" in flat:
+                continue
             value = _first_present(flat, keys)
             if value is not None:
                 self._state[attr] = (
@@ -1024,7 +1026,6 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_PROGRESS: ("progress",),
             ATTR_LAYER: ("curr_layer",),
             ATTR_TOTAL_LAYER: ("total_layers",),
-            ATTR_TOTAL_TIME: ("print_time",),
             ATTR_REMAINING_TIME: ("remain_time", "estimate_duration"),
             ATTR_SUPPLIES_USAGE: ("supplies_usage",),
             ATTR_ESTIMATE_DURATION: ("estimate_duration",),
@@ -1083,7 +1084,6 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_PROGRESS: ("progress",),
             ATTR_LAYER: ("curr_layer",),
             ATTR_TOTAL_LAYER: ("total_layers",),
-            ATTR_TOTAL_TIME: ("print_time",),
             ATTR_REMAINING_TIME: ("remain_time",),
             ATTR_SUPPLIES_USAGE: ("supplies_usage",),
             ATTR_PRINT_SPEED_MODE: ("print_speed_mode",),
@@ -1197,7 +1197,18 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if "print_time" in data:
             total_time = _coerce_int(data.get("print_time"))
             if total_time is not None:
-                self._state[ATTR_TOTAL_TIME] = total_time * 60
+                total_seconds = total_time * 60
+                state = str(
+                    data.get("state") or self._state.get(ATTR_PRINT_STATE) or ""
+                ).lower()
+                current_total = _coerce_int(self._state.get(ATTR_TOTAL_TIME))
+                should_preserve_finished_total = (
+                    state in {"finished", "finish", "completed", "done"}
+                    and current_total is not None
+                    and current_total > total_seconds
+                )
+                if not should_preserve_finished_total:
+                    self._state[ATTR_TOTAL_TIME] = total_seconds
         if "remain_time" in data:
             remaining_time = _coerce_int(data.get("remain_time"))
             if remaining_time is not None:

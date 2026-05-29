@@ -620,7 +620,10 @@ class AnycubicKobraXCard extends HTMLElement {
     const title = this._config.name || this._string(get("printer_name")) || "Anycubic printer";
     const rawStatus = this._displayStatus(get("print_state"), get("last_will"));
     const status = this._formatStatus(rawStatus);
-    const elapsed = this._formatDuration(this._seconds(get("total_time")), false);
+    const elapsed = this._formatDuration(
+      this._elapsedSeconds(rawStatus, get("total_time"), get("estimate_duration")),
+      false
+    );
     const imageUrl = this._config.image || "/anycubic_kobrax_brand_static/icon.png";
     const isIdle = this._isIdle(rawStatus, progress, remaining);
     const isPrinting = !isIdle;
@@ -1481,6 +1484,7 @@ class AnycubicKobraXCard extends HTMLElement {
       "progress",
       "remaining_time",
       "total_time",
+      "estimate_duration",
       "nozzle_temperature",
       "bed_temperature",
       "fan_speed",
@@ -1769,6 +1773,22 @@ class AnycubicKobraXCard extends HTMLElement {
   _seconds(state) {
     const value = this._number(state);
     return value === null ? null : Math.max(0, Math.round(value));
+  }
+
+  _elapsedSeconds(status, totalTimeState, estimateDurationState) {
+    const totalTime = this._seconds(totalTimeState);
+    const estimateDuration = this._seconds(estimateDurationState);
+    const normalized = String(status || "").toLowerCase().replaceAll(/[\s_-]+/g, "");
+    if (
+      estimateDuration !== null
+      && estimateDuration > 0
+      && ["complete", "completed", "finish", "finished", "done"]
+        .some((text) => normalized.includes(text))
+      && (totalTime === null || totalTime < 60)
+    ) {
+      return estimateDuration;
+    }
+    return totalTime;
   }
 
   _formatPercent(value) {
