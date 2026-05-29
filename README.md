@@ -79,6 +79,9 @@ visible_stats:
   - fan
   - remaining
 show_slots: true
+show_print_controls: true # set false to hide pause/resume and stop controls
+show_pause_button: true # optional; set false to hide only pause/resume
+show_stop_button: true # optional; set false to hide only stop
 media_view: preview # preview, thumbnail, camera, or none
 camera_entity: camera.kobra_x_camera # optional when media_view is camera
 ```

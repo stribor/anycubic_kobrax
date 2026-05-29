@@ -226,6 +226,7 @@ class AnycubicKobraXCardEditor extends HTMLElement {
           ${this._checkboxField("hide_preview_when_idle", "Hide preview when idle", this._config.hide_preview_when_idle === true)}
           ${this._checkboxField("show_slots", "Show filament slots", this._config.show_slots !== false)}
           ${this._checkboxField("show_header", "Show header", this._config.show_header !== false)}
+          ${this._checkboxField("show_print_controls", "Show print controls", this._config.show_print_controls !== false)}
           ${this._checkboxField("show_pause_button", "Show pause button", this._config.show_pause_button !== false)}
           ${this._checkboxField("show_stop_button", "Show stop button", this._config.show_stop_button !== false)}
         </div>
@@ -340,6 +341,7 @@ class AnycubicKobraXCardEditor extends HTMLElement {
       "hide_progress_when_idle",
       "show_slots",
       "show_header",
+      "show_print_controls",
       "show_pause_button",
       "show_stop_button",
     ];
@@ -557,6 +559,12 @@ class AnycubicKobraXCard extends HTMLElement {
           },
         },
         {
+          name: "show_print_controls",
+          selector: {
+            boolean: {},
+          },
+        },
+        {
           name: "show_pause_button",
           selector: {
             boolean: {},
@@ -595,6 +603,8 @@ class AnycubicKobraXCard extends HTMLElement {
             return "Show filament slots";
           case "show_header":
             return "Show header";
+          case "show_print_controls":
+            return "Show print controls";
           case "show_pause_button":
             return "Show pause button";
           case "show_stop_button":
@@ -682,8 +692,9 @@ class AnycubicKobraXCard extends HTMLElement {
       : `<div class="progress-number">${this._escape(this._formatPercent(progress))}</div>`;
     const pauseButton = isPaused ? get("resume_print") : get("pause_print");
     const stopButton = get("stop_print");
-    const showPauseButton = this._config.show_pause_button !== false;
-    const showStopButton = this._config.show_stop_button !== false;
+    const showPrintControls = this._config.show_print_controls !== false;
+    const showPauseButton = showPrintControls && this._config.show_pause_button !== false;
+    const showStopButton = showPrintControls && this._config.show_stop_button !== false;
     const printControlsHtml = isPrinting && !hideProgress
       ? this._renderPrintControls(
           pauseButton,
@@ -728,6 +739,7 @@ class AnycubicKobraXCard extends HTMLElement {
       remaining: this._formatDuration(remaining, false),
       showCamera: Boolean(showCamera),
       showHeader,
+      showPrintControls,
       showSlots,
       slotCards,
       statValues,
@@ -1588,6 +1600,7 @@ class AnycubicKobraXCard extends HTMLElement {
           title="${this._escapeAttribute(pauseTitle)}"
           aria-label="${this._escapeAttribute(pauseTitle)}"
           data-print-action="${this._escapeAttribute(pauseButton?.entity_id || "")}"
+          ${!isPaused ? 'data-confirm="Pause the active print?"' : ""}
           ${pauseUnavailable ? "disabled" : ""}
         >
           <ha-icon icon="${isPaused ? "mdi:play" : "mdi:pause"}"></ha-icon>
