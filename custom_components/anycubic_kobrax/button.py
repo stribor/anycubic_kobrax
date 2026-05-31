@@ -14,6 +14,10 @@ from .const import DOMAIN
 from .coordinator import AnycubicKobraXCoordinator
 from .entity import AnycubicKobraXEntity
 
+_ICON_PRINTER_3D = "mdi:printer-3d"
+_ICON_PRINTER_3D_OFF = "mdi:printer-3d-off"
+_ICON_NOZZLE_HEAT = "mdi:printer-3d-nozzle-heat"
+
 
 @dataclass(frozen=True, kw_only=True)
 class AnycubicButtonDescription(ButtonEntityDescription):
@@ -44,18 +48,21 @@ BUTTONS = (
     AnycubicButtonDescription(
         key="nozzle_temp_pla",
         translation_key="nozzle_temp_pla",
+        icon=_ICON_NOZZLE_HEAT,
         action="setNozzleTemperature",
         temperature=210,
     ),
     AnycubicButtonDescription(
         key="nozzle_temp_abs",
         translation_key="nozzle_temp_abs",
+        icon=_ICON_NOZZLE_HEAT,
         action="setNozzleTemperature",
         temperature=230,
     ),
     AnycubicButtonDescription(
         key="preheat_pla",
         translation_key="preheat_pla",
+        icon=_ICON_NOZZLE_HEAT,
         action="preheatPla",
     ),
     AnycubicButtonDescription(
@@ -66,11 +73,13 @@ BUTTONS = (
     AnycubicButtonDescription(
         key="resume_print",
         translation_key="resume_print",
+        icon=_ICON_PRINTER_3D,
         action="resumePrint",
     ),
     AnycubicButtonDescription(
         key="stop_print",
         translation_key="stop_print",
+        icon=_ICON_PRINTER_3D_OFF,
         action="stopPrint",
     ),
 )

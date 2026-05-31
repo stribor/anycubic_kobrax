@@ -15,6 +15,8 @@ from .const import ATTR_FAN_SPEED, ATTR_TARGET_BED_TEMP, ATTR_TARGET_NOZZLE_TEMP
 from .coordinator import AnycubicKobraXCoordinator
 from .entity import AnycubicKobraXEntity
 
+_ICON_NOZZLE_HEAT_OUTLINE = "mdi:printer-3d-nozzle-heat-outline"
+
 
 @dataclass(frozen=True, kw_only=True)
 class AnycubicNumberDescription(NumberEntityDescription):
@@ -33,6 +35,7 @@ NUMBERS = (
     AnycubicNumberDescription(
         key=ATTR_TARGET_NOZZLE_TEMP,
         translation_key="target_nozzle_temperature",
+        icon=_ICON_NOZZLE_HEAT_OUTLINE,
         native_min_value=0,
         native_max_value=300,
         native_step=1,

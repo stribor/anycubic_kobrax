@@ -92,6 +92,14 @@ from .coordinator import AnycubicKobraXCoordinator
 from .entity import AnycubicKobraXEntity
 
 _LOGGER = logging.getLogger(__name__)
+_ICON_PRINTER_3D = "mdi:printer-3d"
+_ICON_PRINTER_3D_OFF = "mdi:printer-3d-off"
+_ICON_NOZZLE_ALERT = "mdi:printer-3d-nozzle-alert"
+_ICON_NOZZLE_HEAT = "mdi:printer-3d-nozzle-heat"
+_ICON_NOZZLE_HEAT_OUTLINE = "mdi:printer-3d-nozzle-heat-outline"
+_ICON_NOZZLE_OFF = "mdi:printer-3d-nozzle-off"
+_ICON_NOZZLE_OFF_OUTLINE = "mdi:printer-3d-nozzle-off-outline"
+_ICON_NOZZLE_OUTLINE = "mdi:printer-3d-nozzle-outline"
 
 
 @dataclass(frozen=True, kw_only=True)
@@ -102,13 +110,25 @@ class AnycubicSensorDescription(SensorEntityDescription):
 
 
 SENSORS = (
-    AnycubicSensorDescription(key=ATTR_LAST_WILL, translation_key="last_will"),
+    AnycubicSensorDescription(
+        key=ATTR_LAST_WILL,
+        translation_key="last_will",
+        icon=_ICON_PRINTER_3D,
+    ),
     AnycubicSensorDescription(key=ATTR_AXIS_STATE, translation_key="axis_state"),
     AnycubicSensorDescription(key=ATTR_AXIS_CODE, translation_key="axis_code"),
     AnycubicSensorDescription(key=ATTR_AXIS_MESSAGE, translation_key="axis_message"),
-    AnycubicSensorDescription(key=ATTR_PRINT_STATE, translation_key="print_state"),
+    AnycubicSensorDescription(
+        key=ATTR_PRINT_STATE,
+        translation_key="print_state",
+        icon=_ICON_PRINTER_3D,
+    ),
     AnycubicSensorDescription(key=ATTR_PRINTER_NAME, translation_key="printer_name"),
-    AnycubicSensorDescription(key=ATTR_MODEL, translation_key="model"),
+    AnycubicSensorDescription(
+        key=ATTR_MODEL,
+        translation_key="model",
+        icon=_ICON_PRINTER_3D,
+    ),
     AnycubicSensorDescription(
         key=ATTR_MODEL_ID,
         translation_key="model_id",
@@ -180,7 +200,11 @@ SENSORS = (
         key=ATTR_SLICER_VERSION, translation_key="slicer_version"
     ),
     AnycubicSensorDescription(key=ATTR_APP_VERSION, translation_key="app_version"),
-    AnycubicSensorDescription(key=ATTR_PRINTER_TYPE, translation_key="printer_type"),
+    AnycubicSensorDescription(
+        key=ATTR_PRINTER_TYPE,
+        translation_key="printer_type",
+        icon=_ICON_PRINTER_3D,
+    ),
     AnycubicSensorDescription(key=ATTR_BED_LEVELING, translation_key="bed_leveling"),
     AnycubicSensorDescription(
         key=ATTR_FLOW_CALIBRATION, translation_key="flow_calibration"
@@ -244,6 +268,7 @@ SENSORS = (
         key=ATTR_NOZZLE_TEMP,
         translation_key="nozzle_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
+        icon=_ICON_NOZZLE_HEAT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
     ),
     AnycubicSensorDescription(
@@ -256,6 +281,7 @@ SENSORS = (
         key=ATTR_TARGET_NOZZLE_TEMP,
         translation_key="target_nozzle_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
+        icon=_ICON_NOZZLE_HEAT_OUTLINE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
     ),
     AnycubicSensorDescription(
@@ -313,10 +339,12 @@ SENSORS = (
             AnycubicSensorDescription(
                 key=ATTR_SLOT_TYPE[slot - 1],
                 translation_key=f"slot_{slot}_type",
+                icon=_ICON_NOZZLE_OUTLINE,
             ),
             AnycubicSensorDescription(
                 key=ATTR_SLOT_STATUS[slot - 1],
                 translation_key=f"slot_{slot}_status",
+                icon=_ICON_NOZZLE_OUTLINE,
             ),
             AnycubicSensorDescription(
                 key=ATTR_SLOT_PERCENT[slot - 1],
@@ -335,6 +363,7 @@ SENSORS = (
             AnycubicSensorDescription(
                 key=ATTR_SLOT_COLOR[slot - 1],
                 translation_key=f"slot_{slot}_color",
+                icon=_ICON_NOZZLE_OUTLINE,
             ),
         )
     ),
@@ -389,6 +418,46 @@ class AnycubicKobraXSensor(AnycubicKobraXEntity, SensorEntity):
         return self.coordinator.data.get(self.entity_description.key)
 
     @property
+    def icon(self) -> str | None:
+        """Return a printer-specific icon when the current state can refine it."""
+        key = self.entity_description.key
+        value = self.coordinator.data.get(key)
+
+        if key == ATTR_LAST_WILL:
+            return (
+                _ICON_PRINTER_3D_OFF
+                if str(value).lower() == "offline"
+                else self.entity_description.icon or super().icon
+            )
+
+        if key == ATTR_PRINT_STATE:
+            state = str(value).lower()
+            if state in {"failed", "error"}:
+                return _ICON_NOZZLE_ALERT
+            if state in {"cancelled", "canceled", "stopping", "stopped", "stoped"}:
+                return _ICON_PRINTER_3D_OFF
+            if state == "preheating":
+                return _ICON_NOZZLE_HEAT
+            return self.entity_description.icon or super().icon
+
+        if key == ATTR_NOZZLE_TEMP:
+            return (
+                _ICON_NOZZLE_OFF
+                if _is_cool(self.coordinator.data.get(ATTR_TARGET_NOZZLE_TEMP))
+                and _is_cool(value, threshold=40)
+                else self.entity_description.icon or super().icon
+            )
+
+        if key == ATTR_TARGET_NOZZLE_TEMP:
+            return (
+                _ICON_NOZZLE_OFF_OUTLINE
+                if _is_cool(value)
+                else self.entity_description.icon or super().icon
+            )
+
+        return self.entity_description.icon or super().icon
+
+    @property
     def extra_state_attributes(self) -> dict[str, Any] | None:
         """Return diagnostic MQTT payload attributes."""
         if not self.entity_description.diagnostic_payload:
@@ -406,3 +475,13 @@ class AnycubicKobraXSensor(AnycubicKobraXEntity, SensorEntity):
             return None
         payload = self.coordinator.data.get("last_payload")
         return {"payload": payload} if payload is not None else None
+
+
+def _is_cool(value: Any, *, threshold: float = 0) -> bool:
+    """Return true when a temperature value is effectively not heating."""
+    if value is None:
+        return True
+    try:
+        return float(value) <= threshold
+    except (TypeError, ValueError):
+        return False
