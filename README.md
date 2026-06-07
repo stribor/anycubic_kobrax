@@ -8,6 +8,19 @@ the same network as Home Assistant, and have LAN mode enabled.
 
 ## Install
 
+### HACS
+
+Add this repository to HACS as a custom repository:
+
+```text
+https://github.com/stribor/anycubic_kobrax
+```
+
+Choose category **Integration**, install **Anycubic Kobra X**, restart Home
+Assistant, then add the integration from Settings > Devices & services.
+
+### Manual
+
 Copy `custom_components/anycubic_kobrax` into the `custom_components` directory
 of your Home Assistant configuration, restart Home Assistant, then add the
 integration from Settings > Devices & services.
