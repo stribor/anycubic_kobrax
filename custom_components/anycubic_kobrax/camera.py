@@ -33,16 +33,16 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
         AnycubicKobraXEntity.__init__(self, coordinator, "camera")
         Camera.__init__(self)
         self._allow_configured_stream = False
+        self._stream_requested = False
+        self._stream_start_lock = asyncio.Lock()
 
     async def stream_source(self) -> str | None:
         """Return the current FLV stream URL for ffmpeg."""
-        if not self.is_streaming:
-            return None
         if (
             stream_url := self.coordinator.stream_url(allow_configured=False)
         ) is not None:
             return stream_url
-        await self.hass.async_add_executor_job(self.coordinator.refresh_stream_url)
+        await self._async_start_stream_capture()
         return self.coordinator.stream_url(
             allow_configured=self._allow_configured_stream
         )
@@ -59,27 +59,50 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
         video_state = self.coordinator.data.get(ATTR_VIDEO_STATE)
         if video_state == "pushStarted":
             return True
+        if self._stream_requested:
+            return True
         if video_state == "pushStopped":
             return False
         return self._attr_is_streaming
 
     async def async_turn_on(self) -> None:
         """Start camera capture."""
-        self._allow_configured_stream = False
-        await self.hass.async_add_executor_job(self.coordinator.start_video)
-        self._attr_is_streaming = True
-        for _ in range(16):
-            if self.coordinator.stream_url(allow_configured=False) is not None:
-                break
-            await self.hass.async_add_executor_job(self.coordinator.refresh_stream_url)
-            await asyncio.sleep(0.5)
-        else:
-            self._allow_configured_stream = True
+        await self._async_start_stream_capture()
         self.async_write_ha_state()
+
+    async def async_refresh_providers(self, *, write_state: bool = True) -> None:
+        """Keep HA on the ffmpeg/HLS stream path for this FLV camera."""
+
+    async def _async_start_stream_capture(self) -> None:
+        """Start printer video capture and wait for a fresh live URL."""
+        async with self._stream_start_lock:
+            if self.coordinator.stream_url(allow_configured=False) is not None:
+                self._stream_requested = True
+                self._attr_is_streaming = True
+                return
+            if not self._stream_requested:
+                self._allow_configured_stream = False
+                self.coordinator.async_prepare_video_start()
+                self._stream_requested = True
+                self._attr_is_streaming = True
+                self.stream = None
+                self.async_write_ha_state()
+                await self.hass.async_add_executor_job(self.coordinator.start_video)
+            for _ in range(16):
+                if self.coordinator.stream_url(allow_configured=False) is not None:
+                    break
+                await self.hass.async_add_executor_job(
+                    self.coordinator.refresh_stream_url
+                )
+                await asyncio.sleep(0.5)
+            else:
+                self._allow_configured_stream = True
 
     async def async_turn_off(self) -> None:
         """Stop camera capture."""
         await self.hass.async_add_executor_job(self.coordinator.stop_video)
+        self._stream_requested = False
         self._attr_is_streaming = False
         self._allow_configured_stream = False
+        self.stream = None
         self.async_write_ha_state()

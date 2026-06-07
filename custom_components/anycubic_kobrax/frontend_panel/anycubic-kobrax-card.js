@@ -70,6 +70,13 @@ function anycubicCameraCardDefaults(hass) {
   };
 }
 
+function anycubicConfigureCameraImage(element, hass, cameraState) {
+  element.hass = hass;
+  element.stateObj = cameraState;
+  element.fitMode = "cover";
+  element.muted = true;
+}
+
 class AnycubicKobraXCardEditor extends HTMLElement {
   constructor() {
     super();
@@ -719,8 +726,6 @@ class AnycubicKobraXCard extends HTMLElement {
       cameraBusy: this._cameraBusy,
       cameraEntity: cameraState?.entity_id || "",
       cameraIsStreaming,
-      compactMeta,
-      eta,
       hasMedia,
       hideProgress,
       imageUrl,
@@ -732,22 +737,25 @@ class AnycubicKobraXCard extends HTMLElement {
       lightUnavailable,
       mediaView,
       previewUrl,
-      progress: this._formatPercent(progress),
       printControlsHtml,
       progressStyle,
-      rawStatus,
-      remaining: this._formatDuration(remaining, false),
       showCamera: Boolean(showCamera),
       showHeader,
       showPrintControls,
       showSlots,
       slotCards,
-      statValues,
       statsColumns,
       title,
       visibleStats,
     });
     if (renderSignature === this._lastRenderSignature && this.shadowRoot.querySelector("ha-card")) {
+      this._updateLiveValues({
+        compactMeta,
+        progress,
+        progressText: this._formatPercent(progress),
+        statValues,
+        visibleStats,
+      });
       this._updateStreamingView();
       this._updateCameraButton(cameraState);
       this._updateLightButton(lightState);
@@ -932,9 +940,10 @@ class AnycubicKobraXCard extends HTMLElement {
           width: 100%;
         }
 
-        .media hui-image {
+        .media .camera-stream {
           aspect-ratio: 16 / 9;
           display: block;
+          object-fit: cover;
           width: 100%;
         }
 
@@ -944,9 +953,10 @@ class AnycubicKobraXCard extends HTMLElement {
           width: 100%;
         }
 
-        .camera-slot hui-image {
+        .camera-slot .camera-stream {
           display: block;
           height: 100%;
+          object-fit: cover;
           width: 100%;
         }
 
@@ -1357,7 +1367,7 @@ class AnycubicKobraXCard extends HTMLElement {
               <div class="media camera-media">
                 ${showCameraStream ? `
                   <div class="camera-slot">
-                    <hui-image></hui-image>
+                    <ha-camera-stream class="camera-stream" muted></ha-camera-stream>
                     ${this._cameraBusy ? `<div class="camera-warmup">Starting stream</div>` : ""}
                   </div>
                 ` : `
@@ -1399,10 +1409,17 @@ class AnycubicKobraXCard extends HTMLElement {
       cameraButton.addEventListener("click", () => this._toggleCamera(this._matchedEntity("camera_entity", "camera")));
     }
 
-    const cameraImage = this.shadowRoot.querySelector(".camera-slot hui-image");
+    const freshCameraImage = this.shadowRoot.querySelector(".camera-slot .camera-stream");
+    let cameraImage = freshCameraImage;
+    if (freshCameraImage && reusableCameraImage) {
+      freshCameraImage.replaceWith(reusableCameraImage);
+      cameraImage = reusableCameraImage;
+    }
     if (cameraImage && cameraState) {
       this._cameraImage = cameraImage;
       this._configureImage(cameraImage, cameraState);
+    } else {
+      this._cameraImage = undefined;
     }
 
     this.shadowRoot.querySelectorAll("[data-print-action]").forEach((button) => {
@@ -1427,11 +1444,42 @@ class AnycubicKobraXCard extends HTMLElement {
     return JSON.stringify(parts);
   }
 
+  _updateLiveValues({ compactMeta, progress, progressText, statValues, visibleStats }) {
+    const progressNumber = this.shadowRoot.querySelector(".progress-number");
+    if (progressNumber) {
+      progressNumber.textContent = progressText;
+    }
+
+    const progressTrack = this.shadowRoot.querySelector(".progress-track");
+    const progressFill = this.shadowRoot.querySelector(".progress-fill");
+    if (progressTrack && progressFill) {
+      const safeProgress = Math.min(100, Math.max(0, progress ?? 0));
+      progressTrack.setAttribute("aria-valuenow", String(Math.round(safeProgress)));
+      progressFill.style.setProperty("--progress-value", `${safeProgress}%`);
+      const progressLabels = this.shadowRoot.querySelectorAll(".progress-bar-top span");
+      if (progressLabels[1]) {
+        progressLabels[1].textContent = progressText;
+      }
+    }
+
+    const compactMetaEl = this.shadowRoot.querySelector(".compact-meta");
+    if (compactMetaEl) {
+      compactMetaEl.textContent = compactMeta;
+    }
+
+    for (const key of visibleStats) {
+      const statValue = this.shadowRoot.querySelector(`.stat[data-stat="${key}"] .value`);
+      if (statValue) {
+        statValue.textContent = statValues[key];
+      }
+    }
+  }
+
   _updateStreamingView() {
     if (this._config.media_view !== "camera") {
       return false;
     }
-    const image = this.shadowRoot.querySelector(".camera-slot hui-image");
+    const image = this.shadowRoot.querySelector(".camera-slot .camera-stream");
     if (!image) {
       return false;
     }
@@ -1643,7 +1691,7 @@ class AnycubicKobraXCard extends HTMLElement {
 
   _renderStat(key, value) {
     return `
-      <div class="stat">
+      <div class="stat" data-stat="${this._escapeAttribute(key)}">
         <div class="label">${this._escape(ANYCUBIC_STAT_LABELS[key])}</div>
         <div class="value">${this._escape(value)}</div>
       </div>
@@ -1704,13 +1752,7 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _configureImage(image, cameraState) {
-    image.hass = this._hass;
-    image.stateObj = cameraState;
-    image.cameraImage = cameraState.entity_id;
-    image.cameraView = this._config.camera_view || "live";
-    image.aspectRatio = "16:9";
-    image.showState = false;
-    image.showName = false;
+    anycubicConfigureCameraImage(image, this._hass, cameraState);
   }
 
   _formatLayer(layerState, totalLayerState) {
@@ -2070,9 +2112,10 @@ class AnycubicKobraXCameraCard extends HTMLElement {
           width: 100%;
         }
 
-        .viewer hui-image {
+        .viewer .camera-stream {
           display: block;
           height: 100%;
+          object-fit: cover;
           width: 100%;
         }
 
@@ -2202,7 +2245,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
         </header>
 
         <div class="viewer">
-          ${cameraState && showStream ? "<hui-image></hui-image>" : `
+          ${cameraState && showStream ? `<ha-camera-stream class="camera-stream" muted></ha-camera-stream>` : `
             <div class="placeholder">
               <ha-icon icon="mdi:video-outline"></ha-icon>
               <div>${this._escape(cameraUnavailable ? "Camera unavailable" : isWarming ? "Starting stream" : isStreaming ? "Stream active" : "Stream stopped")}</div>
@@ -2216,7 +2259,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
       </ha-card>
     `;
 
-    const image = this.shadowRoot.querySelector("hui-image");
+    const image = this.shadowRoot.querySelector(".camera-stream");
     if (image && cameraState) {
       this._configureImage(image, cameraState);
     }
@@ -2249,7 +2292,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
   }
 
   _updateStreamingView() {
-    const image = this.shadowRoot.querySelector("hui-image");
+    const image = this.shadowRoot.querySelector(".camera-stream");
     if (!image) {
       return false;
     }
@@ -2288,13 +2331,7 @@ class AnycubicKobraXCameraCard extends HTMLElement {
   }
 
   _configureImage(image, cameraState) {
-    image.hass = this._hass;
-    image.stateObj = cameraState;
-    image.cameraImage = cameraState.entity_id;
-    image.cameraView = this._config.camera_view || "live";
-    image.aspectRatio = "16:9";
-    image.showState = false;
-    image.showName = false;
+    anycubicConfigureCameraImage(image, this._hass, cameraState);
   }
 
   _findPrinterEntities(states) {

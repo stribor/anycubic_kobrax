@@ -315,6 +315,13 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         payload = self._payload(query_type, action)
         self._publish(f"{self.command_base_topic(source)}/{query_type}", payload)
 
+    @callback
+    def async_prepare_video_start(self) -> None:
+        """Clear stale video state before starting a fresh camera stream."""
+        self._state.pop(ATTR_STREAM_URL, None)
+        self._state.pop(ATTR_VIDEO_STATE, None)
+        self.async_set_updated_data(dict(self._state))
+
     def control_light(self, brightness: int) -> None:
         """Set the printer light brightness as 0-100."""
         self.ensure_connected()
@@ -418,6 +425,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Ask the printer to start camera capture."""
         self.ensure_connected()
         self._state.pop(ATTR_STREAM_URL, None)
+        self._state.pop(ATTR_VIDEO_STATE, None)
         self._publish(
             f"{self.base_web_topic}/video",
             self._payload("video", "startCapture"),
