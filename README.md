@@ -6,6 +6,10 @@ local Anycubic MQTT API used by the Kobra X.
 Setup only needs the printer's LAN IP address. The printer must be online, on
 the same network as Home Assistant, and have LAN mode enabled.
 
+## Preview
+
+![Anycubic Kobra X dashboard preview](docs/dashboard-preview.png)
+
 ## Install
 
 ### HACS
