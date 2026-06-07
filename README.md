@@ -41,10 +41,6 @@ ID, and discovered printer metadata in the Home Assistant config entry. The
 printer name is prefilled from `deviceName` and can be edited during setup or
 later from the integration options.
 
-Do not commit real printer IDs, host addresses, stream tokens, MQTT
-credentials, client certificates, or client keys. For local development, keep
-those in an ignored file such as `.local/anycubic_kobrax.dev.yaml`.
-
 The camera stream path is optional. If the integration sees a MQTT video
 response containing a `/live/<token>` path, it will use that. If token discovery
 does not work, set the path manually in options, for example:
@@ -52,6 +48,14 @@ does not work, set the path manually in options, for example:
 ```text
 /live/k5DawnaQ
 ```
+
+## Security
+
+The integration stores the LAN MQTT credentials and client certificate material
+returned by the printer in the Home Assistant config entry. Avoid sharing config
+entries, debug captures, or logs without checking them for printer IDs, host
+addresses, stream tokens, MQTT credentials, client certificates, and client
+keys.
 
 ## Implemented
 
@@ -176,9 +180,10 @@ do not send notifications on their own.
 
 ## Capturing MQTT samples
 
-To improve decoder coverage, capture real printer traffic while using the
-printer, camera controls, and Anycubic slicer. Keep raw captures in `.local/`
-because they may contain printer identifiers, stream tokens, and file names:
+This optional contributor/debug workflow captures real printer traffic to help
+improve decoder coverage. Keep captures and local credentials in `.local/`,
+which is ignored by git, because they may contain printer identifiers, stream
+tokens, credentials, and file names:
 
 ```bash
 python3 -m venv .venv
