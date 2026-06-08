@@ -28,6 +28,7 @@ from .const import (
     ATTR_BED_LEVELING,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
+    ATTR_CAMERA_TIMELAPSE,
     ATTR_CAMERA_TIMELAPSE_SUPPORT,
     ATTR_DELETE_BATCH_SUPPORT,
     ATTR_DEVICE_CN,
@@ -86,6 +87,9 @@ from .const import (
     ATTR_PRINT_STATE,
     ATTR_PRINT_SPEED,
     ATTR_PRINT_SPEED_MODE,
+    ATTR_PRINT_STATUS,
+    ATTR_PROJECT_PAUSE,
+    ATTR_PROJECT_TYPE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
     ATTR_SHENGWANG_RDT_SUPPORT,
@@ -118,7 +122,11 @@ from .const import (
     ATTR_VIBRATION_COMPENSATION_SUPPORT,
     ATTR_WIFI_SIGNAL,
     ATTR_SOURCE_MODEL_COUNT,
+    ATTR_SOURCE_MODELS_FROM,
     ATTR_SOURCE_MODELS,
+    ATTR_SOURCE_PLATE_INDEX,
+    ATTR_SOURCE_SLICE_PROCESS,
+    ATTR_TASK_SETTINGS,
     ATTR_Z_COMPENSATION,
 )
 from .coordinator import AnycubicKobraXCoordinator
@@ -295,6 +303,36 @@ SENSORS = (
     AnycubicSensorDescription(
         key=ATTR_PRINT_SPEED_MODE,
         translation_key="print_speed_mode",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_PRINT_STATUS,
+        translation_key="print_status",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_PROJECT_PAUSE,
+        translation_key="project_pause",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_PROJECT_TYPE,
+        translation_key="project_type",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_TASK_SETTINGS,
+        translation_key="task_settings",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_CAMERA_TIMELAPSE,
+        translation_key="camera_timelapse",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
     ),
     AnycubicSensorDescription(
         key=ATTR_Z_COMPENSATION,
@@ -525,6 +563,24 @@ SENSORS = (
     AnycubicSensorDescription(
         key=ATTR_SOURCE_MODEL_COUNT,
         translation_key="source_model_count",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_SOURCE_MODELS_FROM,
+        translation_key="source_models_from",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_SOURCE_PLATE_INDEX,
+        translation_key="source_plate_index",
+        entity_category=EntityCategory.DIAGNOSTIC,
+        entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_SOURCE_SLICE_PROCESS,
+        translation_key="source_slice_process",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
     ),

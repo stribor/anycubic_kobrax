@@ -179,6 +179,21 @@
       "print_speed_mode": {
         "name": "Print speed mode"
       },
+      "print_status": {
+        "name": "Print status"
+      },
+      "project_pause": {
+        "name": "Project pause"
+      },
+      "project_type": {
+        "name": "Project type"
+      },
+      "task_settings": {
+        "name": "Task settings"
+      },
+      "camera_timelapse": {
+        "name": "Camera timelapse"
+      },
       "z_compensation": {
         "name": "Z compensation"
       },
@@ -361,6 +376,15 @@
       },
       "source_model_count": {
         "name": "Source model count"
+      },
+      "source_models_from": {
+        "name": "Source models from"
+      },
+      "source_plate_index": {
+        "name": "Source plate index"
+      },
+      "source_slice_process": {
+        "name": "Source slice process"
       },
       "auto_leveling_support": {
         "name": "Auto leveling support"

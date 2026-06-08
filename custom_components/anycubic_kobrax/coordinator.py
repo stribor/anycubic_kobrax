@@ -37,6 +37,7 @@ from .const import (
     ATTR_BED_LEVELING,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
+    ATTR_CAMERA_TIMELAPSE,
     ATTR_CAMERA_TIMELAPSE_SUPPORT,
     ATTR_DELETE_BATCH_SUPPORT,
     ATTR_DEVICE_CN,
@@ -96,6 +97,9 @@ from .const import (
     ATTR_PRINT_STATE,
     ATTR_PRINT_SPEED,
     ATTR_PRINT_SPEED_MODE,
+    ATTR_PRINT_STATUS,
+    ATTR_PROJECT_PAUSE,
+    ATTR_PROJECT_TYPE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
     ATTR_SHENGWANG_RDT_SUPPORT,
@@ -129,7 +133,11 @@ from .const import (
     ATTR_VIBRATION_COMPENSATION_SUPPORT,
     ATTR_WIFI_SIGNAL,
     ATTR_SOURCE_MODEL_COUNT,
+    ATTR_SOURCE_MODELS_FROM,
     ATTR_SOURCE_MODELS,
+    ATTR_SOURCE_PLATE_INDEX,
+    ATTR_SOURCE_SLICE_PROCESS,
+    ATTR_TASK_SETTINGS,
     ATTR_Z_COMPENSATION,
     CONF_DEVICE_CERT,
     CONF_DEVICE_CN,
@@ -759,6 +767,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "feedRate",
             ),
             ATTR_PRINT_SPEED_MODE: ("print_speed_mode", "printSpeedMode"),
+            ATTR_PRINT_STATUS: ("print_status", "printStatus"),
+            ATTR_PROJECT_PAUSE: ("pause",),
+            ATTR_PROJECT_TYPE: ("project_type",),
             ATTR_Z_COMPENSATION: ("z_comp", "zComp", "z_offset", "zOffset"),
             ATTR_REMAINING_TIME: (
                 "remain_time",
@@ -910,6 +921,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_STORAGE_USED,
             ATTR_PRINT_SPEED,
             ATTR_PRINT_SPEED_MODE,
+            ATTR_PRINT_STATUS,
+            ATTR_PROJECT_PAUSE,
+            ATTR_PROJECT_TYPE,
+            ATTR_CAMERA_TIMELAPSE,
             ATTR_REMAINING_TIME,
             ATTR_TOTAL_TIME,
             ATTR_SUPPLIES_USAGE,
@@ -936,6 +951,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_MULTI_COLOR_BOX_FEED_SLOT,
             ATTR_MULTI_COLOR_BOX_FEED_TYPE,
             ATTR_SOURCE_MODEL_COUNT,
+            ATTR_SOURCE_MODELS_FROM,
+            ATTR_SOURCE_PLATE_INDEX,
+            ATTR_SOURCE_SLICE_PROCESS,
             *ATTR_SLOT_STATUS,
             *ATTR_SLOT_PERCENT,
             *ATTR_SLOT_WEIGHT,
@@ -1171,6 +1189,14 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             version = source_info.get("software_version")
             if version:
                 self._state[ATTR_SLICER_VERSION] = version
+            source_mappings = {
+                ATTR_SOURCE_MODELS_FROM: source_info.get("models_from"),
+                ATTR_SOURCE_PLATE_INDEX: source_info.get("plate_index"),
+                ATTR_SOURCE_SLICE_PROCESS: source_info.get("slice_paras_process"),
+            }
+            for key, value in source_mappings.items():
+                if value is not None:
+                    self._state[key] = value
             models = source_info.get("models")
             if isinstance(models, list):
                 names = [
@@ -1209,6 +1235,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_REMAINING_TIME: ("remain_time",),
             ATTR_SUPPLIES_USAGE: ("supplies_usage",),
             ATTR_PRINT_SPEED_MODE: ("print_speed_mode",),
+            ATTR_PRINT_STATUS: ("print_status",),
+            ATTR_PROJECT_PAUSE: ("pause",),
+            ATTR_PROJECT_TYPE: ("project_type",),
         }
         for attr, keys in mappings.items():
             value = _first_present(project, keys)
@@ -1217,12 +1246,29 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     _normalize_print_state(value) if attr == ATTR_PRINT_STATE else value
                 )
 
+        self._merge_task_settings(project.get("task_settings"))
+
         self._convert_print_minutes_to_seconds(project)
         self._derive_filament_usage_from_supplies()
         self._derive_print_estimates()
         self._record_print_event(payload, project)
         if filename := self._state.get(ATTR_FILENAME):
             self.request_file_details(str(filename), str(self._state.get(ATTR_FILE_ROOT, "local")))
+
+    def _merge_task_settings(self, task_settings: Any) -> None:
+        """Merge Anycubic project task settings from pair-list payloads."""
+        if not isinstance(task_settings, list):
+            return
+        settings: list[str] = []
+
+        for index in range(0, len(task_settings) - 1, 2):
+            key = task_settings[index]
+            value = task_settings[index + 1]
+            settings.append(f"{key}={value}")
+            if key == "camera_timelapse":
+                self._state[ATTR_CAMERA_TIMELAPSE] = value
+        if settings:
+            self._state[ATTR_TASK_SETTINGS] = ", ".join(settings)
 
     def _record_axis_event(self, payload: dict[str, Any]) -> None:
         """Record actionable axis errors as Home Assistant events."""
