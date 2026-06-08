@@ -32,37 +32,62 @@ from .const import (
     ATTR_AXIS_MESSAGE,
     ATTR_AXIS_STATE,
     ATTR_APP_VERSION,
+    ATTR_AUTO_LEVELING_SUPPORT,
     ATTR_BED_TEMP,
     ATTR_BED_LEVELING,
     ATTR_BOX_FAN_SPEED,
     ATTR_CAMERA_AVAILABLE,
+    ATTR_CAMERA_TIMELAPSE_SUPPORT,
+    ATTR_DELETE_BATCH_SUPPORT,
     ATTR_DEVICE_CN,
     ATTR_DEVICE_USN,
     ATTR_DEVICE_ZONE,
+    ATTR_DRYING_FIRST_SUPPORT,
     ATTR_ESTIMATE_DURATION,
     ATTR_ESTIMATE_WEIGHT,
     ATTR_FAN_SPEED,
     ATTR_FILENAME,
     ATTR_FILAMENT_USED,
     ATTR_FILE_ROOT,
+    ATTR_FILE_UPLOAD_URL,
     ATTR_FIRMWARE_VERSION,
     ATTR_FLOW_CALIBRATION,
+    ATTR_FLOW_CALIBRATION_SUPPORT,
     ATTR_FOREIGN_OBJECT_DETECTION,
+    ATTR_FOREIGN_OBJECT_DETECTION_SUPPORT,
     ATTR_GCODE_SIZE,
+    ATTR_GCODE_3MF_SUPPORT,
+    ATTR_HEAD_TOOLS_MODEL,
     ATTR_IP_ADDRESS,
+    ATTR_KEEP_PRINT_HEAD_TEMP_SUPPORT,
     ATTR_LAYER,
     ATTR_LAST_TOPIC,
     ATTR_LAST_WILL,
     ATTR_LIGHT_BRIGHTNESS,
     ATTR_LOADED_SLOT,
+    ATTR_LOCAL_TASK_ID,
     ATTR_MATERIAL,
     ATTR_MODEL,
     ATTR_MODEL_ID,
     ATTR_MULTI_COLOR_BOX,
+    ATTR_MULTI_COLOR_BOX_AUTO_FEED,
+    ATTR_MULTI_COLOR_BOX_DRYING_DURATION,
+    ATTR_MULTI_COLOR_BOX_DRYING_REMAINING_TIME,
+    ATTR_MULTI_COLOR_BOX_DRYING_STATUS,
+    ATTR_MULTI_COLOR_BOX_DRYING_TARGET_TEMP,
+    ATTR_MULTI_COLOR_BOX_FEED_CODE,
+    ATTR_MULTI_COLOR_BOX_FEED_SLOT,
+    ATTR_MULTI_COLOR_BOX_FEED_STATUS,
+    ATTR_MULTI_COLOR_BOX_FEED_TYPE,
     ATTR_MULTI_COLOR_BOX_HUMIDITY,
+    ATTR_MULTI_COLOR_BOX_ID,
+    ATTR_MULTI_COLOR_BOX_MODEL_ID,
     ATTR_MULTI_COLOR_BOX_STATUS,
     ATTR_MULTI_COLOR_BOX_TEMP,
     ATTR_NOZZLE_TEMP,
+    ATTR_PERIPHERAL_CODE,
+    ATTR_PREHEATING_SUPPORT,
+    ATTR_PRE_CANCEL_SUPPORT,
     ATTR_PRINT_FILAMENTS,
     ATTR_PRINT_FILAMENTS_WEIGHT,
     ATTR_PRINT_PARAMS,
@@ -73,6 +98,8 @@ from .const import (
     ATTR_PRINT_SPEED_MODE,
     ATTR_PROGRESS,
     ATTR_REMAINING_TIME,
+    ATTR_SHENGWANG_RDT_SUPPORT,
+    ATTR_SHENGWANG_RTC_SUPPORT,
     ATTR_SLICER,
     ATTR_SLICER_VERSION,
     ATTR_SLICE_FILAMENTS,
@@ -92,12 +119,18 @@ from .const import (
     ATTR_TARGET_BED_TEMP,
     ATTR_TARGET_NOZZLE_TEMP,
     ATTR_TASK_ID,
+    ATTR_TIMELAPSE_PATH,
     ATTR_TOTAL_TIME,
     ATTR_TOTAL_LAYER,
     ATTR_TIME_LAPSE,
     ATTR_USB_DISK,
+    ATTR_USB_PATH,
     ATTR_VIDEO_STATE,
+    ATTR_VIBRATION_COMPENSATION_SUPPORT,
     ATTR_WIFI_SIGNAL,
+    ATTR_SOURCE_MODEL_COUNT,
+    ATTR_SOURCE_MODELS,
+    ATTR_Z_COMPENSATION,
     CONF_DEVICE_CERT,
     CONF_DEVICE_CN,
     CONF_DEVICE_KEY,
@@ -695,7 +728,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "name",
             ),
             ATTR_TASK_ID: ("taskid", "task_id"),
+            ATTR_LOCAL_TASK_ID: ("localtask", "local_task", "local_task_id"),
             ATTR_FILE_ROOT: ("root",),
+            ATTR_FILE_UPLOAD_URL: ("fileUploadurl", "file_upload_url", "uploadUrl"),
             ATTR_FILAMENT_USED: ("filament_used",),
             ATTR_ESTIMATE_DURATION: ("estimate_duration",),
             ATTR_ESTIMATE_WEIGHT: ("estimate_weight",),
@@ -724,6 +759,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "feedRate",
             ),
             ATTR_PRINT_SPEED_MODE: ("print_speed_mode", "printSpeedMode"),
+            ATTR_Z_COMPENSATION: ("z_comp", "zComp", "z_offset", "zOffset"),
             ATTR_REMAINING_TIME: (
                 "remain_time",
                 "remainingTime",
@@ -802,17 +838,39 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ),
             ATTR_CAMERA_AVAILABLE: ("camera", "camera_available"),
             ATTR_USB_DISK: ("udisk", "usbDisk", "usb_disk"),
+            ATTR_USB_PATH: ("usb_path", "usbPath"),
+            ATTR_TIMELAPSE_PATH: ("mount_path", "mountPath", "timelapse_path"),
+            ATTR_PERIPHERAL_CODE: ("ret_code", "retCode"),
             ATTR_MULTI_COLOR_BOX: ("multiColorBox", "multi_color_box"),
+            ATTR_HEAD_TOOLS_MODEL: ("head_tools_model", "headToolsModel"),
             ATTR_VIDEO_STATE: ("videoState", "video_state"),
             ATTR_MATERIAL: ("material", "filament", "filamentType"),
             ATTR_LAYER: ("curr_layer", "layer", "currentLayer", "currLayer"),
             ATTR_TOTAL_LAYER: ("total_layers", "totalLayer", "totalLayers", "layerCount"),
+            ATTR_AUTO_LEVELING_SUPPORT: ("auto_leveling_support",),
+            ATTR_CAMERA_TIMELAPSE_SUPPORT: ("camera_timelapse_support",),
+            ATTR_DELETE_BATCH_SUPPORT: ("delete_batch_support",),
+            ATTR_DRYING_FIRST_SUPPORT: ("drying_first_support",),
+            ATTR_FLOW_CALIBRATION_SUPPORT: ("flow_calibration_support",),
+            ATTR_FOREIGN_OBJECT_DETECTION_SUPPORT: (
+                "fod_support",
+                "foreign_object_detection_support",
+            ),
+            ATTR_GCODE_3MF_SUPPORT: ("gcode_3mf_support",),
+            ATTR_KEEP_PRINT_HEAD_TEMP_SUPPORT: ("keep_print_head_temp_support",),
+            ATTR_PRE_CANCEL_SUPPORT: ("pre_cancel_support",),
+            ATTR_PREHEATING_SUPPORT: ("preheating_support",),
+            ATTR_SHENGWANG_RDT_SUPPORT: ("shengwang_rdt_support",),
+            ATTR_SHENGWANG_RTC_SUPPORT: ("shengwang_rtc_support",),
+            ATTR_VIBRATION_COMPENSATION_SUPPORT: ("vibration_compensation_support",),
         }
         for attr, keys in field_map.items():
             if attr == ATTR_TOTAL_TIME and "print_time" in flat:
                 continue
             value = _first_present(flat, keys)
             if value is not None:
+                if attr == ATTR_MULTI_COLOR_BOX and _coerce_int(value) is None:
+                    continue
                 self._state[attr] = (
                     _normalize_print_state(value) if attr == ATTR_PRINT_STATE else value
                 )
@@ -861,10 +919,23 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_LIGHT_BRIGHTNESS,
             ATTR_CAMERA_AVAILABLE,
             ATTR_USB_DISK,
+            ATTR_PERIPHERAL_CODE,
             ATTR_MULTI_COLOR_BOX,
+            ATTR_HEAD_TOOLS_MODEL,
+            ATTR_MULTI_COLOR_BOX_ID,
+            ATTR_MULTI_COLOR_BOX_MODEL_ID,
             ATTR_MULTI_COLOR_BOX_STATUS,
             ATTR_MULTI_COLOR_BOX_HUMIDITY,
             ATTR_LOADED_SLOT,
+            ATTR_MULTI_COLOR_BOX_AUTO_FEED,
+            ATTR_MULTI_COLOR_BOX_DRYING_STATUS,
+            ATTR_MULTI_COLOR_BOX_DRYING_DURATION,
+            ATTR_MULTI_COLOR_BOX_DRYING_REMAINING_TIME,
+            ATTR_MULTI_COLOR_BOX_FEED_STATUS,
+            ATTR_MULTI_COLOR_BOX_FEED_CODE,
+            ATTR_MULTI_COLOR_BOX_FEED_SLOT,
+            ATTR_MULTI_COLOR_BOX_FEED_TYPE,
+            ATTR_SOURCE_MODEL_COUNT,
             *ATTR_SLOT_STATUS,
             *ATTR_SLOT_PERCENT,
             *ATTR_SLOT_WEIGHT,
@@ -877,8 +948,10 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_TARGET_NOZZLE_TEMP,
             ATTR_TARGET_BED_TEMP,
             ATTR_MULTI_COLOR_BOX_TEMP,
+            ATTR_MULTI_COLOR_BOX_DRYING_TARGET_TEMP,
             ATTR_ESTIMATE_WEIGHT,
             ATTR_FILAMENT_USED,
+            ATTR_Z_COMPENSATION,
         )
         for attr in int_fields:
             value = _coerce_int(self._state.get(attr))
@@ -902,14 +975,45 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
 
         mapping = {
+            ATTR_MULTI_COLOR_BOX_ID: box.get("id"),
+            ATTR_MULTI_COLOR_BOX_MODEL_ID: box.get("model_id"),
             ATTR_MULTI_COLOR_BOX_STATUS: box.get("status"),
             ATTR_MULTI_COLOR_BOX_TEMP: box.get("temp"),
             ATTR_MULTI_COLOR_BOX_HUMIDITY: box.get("humidity"),
             ATTR_LOADED_SLOT: box.get("loaded_slot"),
+            ATTR_MULTI_COLOR_BOX_AUTO_FEED: box.get("auto_feed"),
         }
         for key, value in mapping.items():
             if value is not None:
                 self._state[key] = value
+
+        drying_status = box.get("drying_status")
+        if isinstance(drying_status, dict):
+            drying_mapping = {
+                ATTR_MULTI_COLOR_BOX_DRYING_STATUS: drying_status.get("status"),
+                ATTR_MULTI_COLOR_BOX_DRYING_DURATION: drying_status.get("duration"),
+                ATTR_MULTI_COLOR_BOX_DRYING_REMAINING_TIME: drying_status.get(
+                    "remain_time"
+                ),
+                ATTR_MULTI_COLOR_BOX_DRYING_TARGET_TEMP: drying_status.get(
+                    "target_temp"
+                ),
+            }
+            for key, value in drying_mapping.items():
+                if value is not None:
+                    self._state[key] = value
+
+        feed_status = box.get("feed_status")
+        if isinstance(feed_status, dict):
+            feed_mapping = {
+                ATTR_MULTI_COLOR_BOX_FEED_STATUS: feed_status.get("current_status"),
+                ATTR_MULTI_COLOR_BOX_FEED_CODE: feed_status.get("code"),
+                ATTR_MULTI_COLOR_BOX_FEED_SLOT: feed_status.get("slot_index"),
+                ATTR_MULTI_COLOR_BOX_FEED_TYPE: feed_status.get("type"),
+            }
+            for key, value in feed_mapping.items():
+                if value is not None:
+                    self._state[key] = value
 
         slots = box.get("slots")
         if isinstance(slots, list):
@@ -1067,6 +1171,16 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             version = source_info.get("software_version")
             if version:
                 self._state[ATTR_SLICER_VERSION] = version
+            models = source_info.get("models")
+            if isinstance(models, list):
+                names = [
+                    str(model["name"])
+                    for model in models
+                    if isinstance(model, dict) and model.get("name")
+                ]
+                self._state[ATTR_SOURCE_MODEL_COUNT] = len(names)
+                if names:
+                    self._state[ATTR_SOURCE_MODELS] = ", ".join(names)
 
         self._convert_print_minutes_to_seconds(data)
         self._derive_filament_usage_from_supplies()
@@ -1159,8 +1273,15 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         if event_type is None:
             return
+        task_identity = (
+            data.get("localtask")
+            or data.get("local_task_id")
+            or data.get("taskid")
+            or data.get("task_id")
+        )
         dedupe_state = (
-            f"{event_type}:{data.get('taskid') or data.get('task_id')}:"
+            f"{event_type}:"
+            f"{task_identity}:"
             f"{data.get('filename') or data.get('task_name')}"
         )
         if dedupe_state == self._last_print_event_state:
@@ -1174,6 +1295,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 "code": payload.get("code"),
                 "message": payload.get("msg"),
                 "filename": data.get("filename") or data.get("task_name"),
+                "local_task_id": data.get("localtask") or data.get("local_task_id"),
+                "task_id": data.get("taskid") or data.get("task_id"),
                 "progress": data.get("progress"),
                 "layer": data.get("curr_layer"),
                 "total_layers": data.get("total_layers"),

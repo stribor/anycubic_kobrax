@@ -98,8 +98,14 @@
       "task_id": {
         "name": "Task ID"
       },
+      "local_task_id": {
+        "name": "Local task ID"
+      },
       "file_root": {
         "name": "File root"
+      },
+      "file_upload_url": {
+        "name": "File upload URL"
       },
       "material": {
         "name": "Material"
@@ -173,6 +179,9 @@
       "print_speed_mode": {
         "name": "Print speed mode"
       },
+      "z_compensation": {
+        "name": "Z compensation"
+      },
       "remaining_time": {
         "name": "Remaining time"
       },
@@ -206,11 +215,29 @@
       "usb_disk": {
         "name": "USB disk"
       },
+      "usb_path": {
+        "name": "USB path"
+      },
+      "timelapse_path": {
+        "name": "Timelapse path"
+      },
+      "peripheral_code": {
+        "name": "Peripheral code"
+      },
       "multi_color_box": {
         "name": "Multi-color box"
       },
       "video_state": {
         "name": "Video state"
+      },
+      "head_tools_model": {
+        "name": "Head tools model"
+      },
+      "multi_color_box_id": {
+        "name": "Multi-color box ID"
+      },
+      "multi_color_box_model_id": {
+        "name": "Multi-color box model ID"
       },
       "multi_color_box_status": {
         "name": "Multi-color box status"
@@ -223,6 +250,33 @@
       },
       "loaded_slot": {
         "name": "Loaded slot"
+      },
+      "multi_color_box_auto_feed": {
+        "name": "Multi-color box auto feed"
+      },
+      "multi_color_box_drying_status": {
+        "name": "Multi-color box drying status"
+      },
+      "multi_color_box_drying_duration": {
+        "name": "Multi-color box drying duration"
+      },
+      "multi_color_box_drying_remaining_time": {
+        "name": "Multi-color box drying remaining time"
+      },
+      "multi_color_box_drying_target_temperature": {
+        "name": "Multi-color box drying target temperature"
+      },
+      "multi_color_box_feed_status": {
+        "name": "Multi-color box feed status"
+      },
+      "multi_color_box_feed_code": {
+        "name": "Multi-color box feed code"
+      },
+      "multi_color_box_feed_slot": {
+        "name": "Multi-color box feed slot"
+      },
+      "multi_color_box_feed_type": {
+        "name": "Multi-color box feed type"
       },
       "slot_1_type": {
         "name": "Slot 1 type"
@@ -301,6 +355,51 @@
       },
       "total_layer": {
         "name": "Total layer"
+      },
+      "source_models": {
+        "name": "Source models"
+      },
+      "source_model_count": {
+        "name": "Source model count"
+      },
+      "auto_leveling_support": {
+        "name": "Auto leveling support"
+      },
+      "camera_timelapse_support": {
+        "name": "Camera timelapse support"
+      },
+      "delete_batch_support": {
+        "name": "Delete batch support"
+      },
+      "drying_first_support": {
+        "name": "Drying first support"
+      },
+      "flow_calibration_support": {
+        "name": "Flow calibration support"
+      },
+      "foreign_object_detection_support": {
+        "name": "Foreign object detection support"
+      },
+      "gcode_3mf_support": {
+        "name": "G-code 3MF support"
+      },
+      "keep_print_head_temp_support": {
+        "name": "Keep print head temperature support"
+      },
+      "pre_cancel_support": {
+        "name": "Pre-cancel support"
+      },
+      "preheating_support": {
+        "name": "Preheating support"
+      },
+      "shengwang_rdt_support": {
+        "name": "Shengwang RDT support"
+      },
+      "shengwang_rtc_support": {
+        "name": "Shengwang RTC support"
+      },
+      "vibration_compensation_support": {
+        "name": "Vibration compensation support"
       },
       "last_mqtt_message": {
         "name": "Last MQTT message"
