@@ -1,6 +1,6 @@
 {
   "domain": "anycubic_kobrax",
-  "name": "Anycubic Kobra X",
+  "name": "Anycubic Kobra X LAN Mode",
   "after_dependencies": ["ffmpeg", "stream"],
   "codeowners": ["@stribor"],
   "config_flow": true,

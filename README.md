@@ -1,4 +1,4 @@
-# Anycubic Kobra X Home Assistant integration
+# Anycubic Kobra X LAN Mode Home Assistant integration
 
 Custom Home Assistant integration for Anycubic FDM printers that expose the
 local Anycubic MQTT API used by the Kobra X.
@@ -20,7 +20,7 @@ Add this repository to HACS as a custom repository:
 https://github.com/stribor/anycubic_kobrax
 ```
 
-Choose category **Integration**, install **Anycubic Kobra X**, restart Home
+Choose category **Integration**, install **Anycubic Kobra X LAN Mode**, restart Home
 Assistant, then add the integration from Settings > Devices & services.
 
 ### Manual
