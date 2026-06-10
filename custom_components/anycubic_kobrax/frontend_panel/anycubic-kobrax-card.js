@@ -30,6 +30,8 @@ const ANYCUBIC_IDLE_STATUS_TEXT = [
   "completed",
   "finish",
   "finished",
+  "unknown",
+  "unavailable",
 ];
 const ANYCUBIC_DIAGNOSTIC_STATUS_TEXT = ["online", "pushstarted", "pushstopped", "received"];
 const ANYCUBIC_PRINTING_STATUS_TEXT = ["updated", "resuming", "resumed"];
@@ -1720,9 +1722,10 @@ class AnycubicKobraXCard extends HTMLElement {
     const loadedSlot = this._number(get("loaded_slot"));
     const material = this._string(typeState);
     const status = this._number(statusState);
+    const unavailable = this._isSlotUnavailable(typeState, statusState);
     const mounted = material && status !== 4;
     const feeding = loadedSlot === slot - 1;
-    const label = mounted ? material : "Not mounted";
+    const label = unavailable ? "Unavailable" : mounted ? material : "Not mounted";
     const color = this._slotColor(colorState);
     return `
       <div class="slot ${mounted ? "" : "empty"} ${feeding ? "feeding" : ""}">
@@ -1730,6 +1733,14 @@ class AnycubicKobraXCard extends HTMLElement {
         <div class="filament" title="${this._escapeAttribute(label)}">${this._escape(label)}</div>
       </div>
     `;
+  }
+
+  _isSlotUnavailable(typeState, statusState) {
+    return (
+      this._isUnavailable(typeState)
+      || this._isUnavailable(statusState)
+      || (!typeState && !statusState)
+    );
   }
 
   _slotColor(state) {
@@ -1780,7 +1791,7 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _isUnavailable(state) {
-    return state.state === "unknown" || state.state === "unavailable";
+    return !state || state.state === "unknown" || state.state === "unavailable";
   }
 
   _isPrintButtonUnavailable(state) {
