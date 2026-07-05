@@ -21,6 +21,39 @@ const ANYCUBIC_STAT_LABELS = {
   filament: "Filament",
   remaining: "Remaining",
 };
+const ANYCUBIC_MANUAL_ENTITY_FIELDS = [
+  { key: "printer_name", label: "Printer name entity", domain: "sensor" },
+  { key: "last_will", label: "Last will entity", domain: "sensor" },
+  { key: "print_state", label: "Print state entity", domain: "sensor" },
+  { key: "progress", label: "Progress entity", domain: "sensor" },
+  { key: "remaining_time", label: "Remaining time entity", domain: "sensor" },
+  { key: "total_time", label: "Total time entity", domain: "sensor" },
+  { key: "estimate_duration", label: "Estimated duration entity", domain: "sensor" },
+  { key: "nozzle_temperature", label: "Nozzle temperature entity", domain: "sensor" },
+  { key: "bed_temperature", label: "Bed temperature entity", domain: "sensor" },
+  { key: "fan_speed", label: "Fan speed entity", domain: "sensor" },
+  { key: "layer", label: "Layer entity", domain: "sensor" },
+  { key: "total_layer", label: "Total layer entity", domain: "sensor" },
+  { key: "filament_used", label: "Filament used entity", domain: "sensor" },
+  { key: "supplies_usage", label: "Supplies usage entity", domain: "sensor" },
+  { key: "loaded_slot", label: "Loaded slot entity", domain: "sensor" },
+  ...Array.from({ length: 4 }, (_, index) => index + 1).flatMap((slot) => [
+    { key: `slot_${slot}_type`, label: `Slot ${slot} type entity`, domain: "sensor" },
+    { key: `slot_${slot}_status`, label: `Slot ${slot} status entity`, domain: "sensor" },
+    { key: `slot_${slot}_color`, label: `Slot ${slot} color entity`, domain: "sensor" },
+  ]),
+  { key: "preview_image", label: "Preview image entity", domain: "image" },
+  { key: "thumbnail_image", label: "Thumbnail image entity", domain: "image" },
+  { key: "camera_entity", label: "Camera entity", domain: "camera" },
+  { key: "light", label: "Light entity", domain: "light" },
+  { key: "pause_print", label: "Pause print button", domain: "button" },
+  { key: "resume_print", label: "Resume print button", domain: "button" },
+  { key: "stop_print", label: "Stop print button", domain: "button" },
+];
+const ANYCUBIC_ENTITY_DOMAINS = Object.fromEntries(
+  ANYCUBIC_MANUAL_ENTITY_FIELDS.map((field) => [field.key, field.domain])
+);
+const ANYCUBIC_ENTITY_KEYS = new Set(ANYCUBIC_MANUAL_ENTITY_FIELDS.map((field) => field.key));
 const ANYCUBIC_IDLE_STATUS_TEXT = [
   "free",
   "idle",
@@ -36,7 +69,15 @@ const ANYCUBIC_IDLE_STATUS_TEXT = [
 const ANYCUBIC_DIAGNOSTIC_STATUS_TEXT = ["online", "pushstarted", "pushstopped", "received"];
 const ANYCUBIC_PRINTING_STATUS_TEXT = ["updated", "resuming", "resumed"];
 
-function anycubicEntityMatches(states) {
+function anycubicEntityMatches(states, hass) {
+  const registryMatches = states.filter((state) => {
+    const metadata = anycubicEntityMetadata(hass, state.entity_id);
+    return metadata?.platform === "anycubic_kobrax";
+  });
+  if (registryMatches.length > 0) {
+    return registryMatches;
+  }
+
   const explicit = states.filter((state) => {
     const entityId = state.entity_id || "";
     const name = state.attributes?.friendly_name || "";
@@ -61,15 +102,34 @@ function anycubicEntityMatches(states) {
     : [];
 }
 
+function anycubicEntityMetadata(hass, entityId) {
+  return entityId ? hass?.entities?.[entityId] : undefined;
+}
+
+function anycubicUniqueKey(state, hass) {
+  const uniqueId = anycubicEntityMetadata(hass, state.entity_id)?.unique_id || "";
+  const domain = state.entity_id?.split(".").shift();
+  return Array.from(ANYCUBIC_ENTITY_KEYS).find((key) => {
+    const expectedDomain = ANYCUBIC_ENTITY_DOMAINS[key];
+    return (!expectedDomain || expectedDomain === domain) && uniqueId.endsWith(`_${key}`);
+  });
+}
+
 function anycubicCameraCardDefaults(hass) {
   const states = Object.values(hass?.states || {});
-  const matches = anycubicEntityMatches(states);
+  const matches = anycubicEntityMatches(states, hass);
   const camera = matches.find((state) => state.entity_id?.startsWith("camera."));
   const light = matches.find((state) => state.entity_id?.startsWith("light."));
   return {
     ...(camera ? { camera_entity: camera.entity_id } : {}),
     ...(light ? { light_entity: light.entity_id } : {}),
   };
+}
+
+function anycubicEntityOptions(hass, domain) {
+  return Object.values(hass?.states || {})
+    .filter((state) => !domain || state.entity_id?.startsWith(`${domain}.`))
+    .sort((a, b) => a.entity_id.localeCompare(b.entity_id));
 }
 
 function anycubicConfigureCameraImage(element, hass, cameraState) {
@@ -98,26 +158,6 @@ class AnycubicKobraXCardEditor extends HTMLElement {
   }
 
   _render() {
-    const cameraEntities = Object.values(this._hass?.states || {})
-      .filter((state) => state.entity_id?.startsWith("camera."))
-      .sort((a, b) => a.entity_id.localeCompare(b.entity_id));
-    const selectedCamera = this._config.camera_entity || "";
-    const cameraOptions = [
-      `<option value="">Auto-detect</option>`,
-      ...cameraEntities.map((state) => `
-        <option value="${this._escapeAttribute(state.entity_id)}" ${state.entity_id === selectedCamera ? "selected" : ""}>
-          ${this._escape(state.attributes?.friendly_name || state.entity_id)}
-        </option>
-      `),
-    ];
-    if (selectedCamera && !cameraEntities.some((state) => state.entity_id === selectedCamera)) {
-      cameraOptions.push(`
-        <option value="${this._escapeAttribute(selectedCamera)}" selected>
-          ${this._escape(selectedCamera)}
-        </option>
-      `);
-    }
-
     this.shadowRoot.innerHTML = `
       <style>
         *, *::before, *::after {
@@ -224,11 +264,6 @@ class AnycubicKobraXCardEditor extends HTMLElement {
           ["none", "None"],
         ], "preview")}
 
-        <label class="field">
-          <span class="label">Camera entity</span>
-          <select data-key="camera_entity">${cameraOptions.join("")}</select>
-        </label>
-
         <div class="section">
           <div class="section-title">Visibility</div>
           ${this._checkboxField("hide_progress_when_idle", "Hide progress when idle", this._config.hide_progress_when_idle !== false)}
@@ -249,6 +284,11 @@ class AnycubicKobraXCardEditor extends HTMLElement {
           <div class="stats">
             ${Object.entries(ANYCUBIC_STAT_LABELS).map(([key, label]) => this._statCheckbox(key, label)).join("")}
           </div>
+        </div>
+
+        <div class="section">
+          <div class="section-title">Manual entities</div>
+          ${ANYCUBIC_MANUAL_ENTITY_FIELDS.map((field) => this._entitySelectField(field)).join("")}
         </div>
       </div>
     `;
@@ -282,6 +322,32 @@ class AnycubicKobraXCardEditor extends HTMLElement {
             </option>
           `).join("")}
         </select>
+      </label>
+    `;
+  }
+
+  _entitySelectField(field) {
+    const selectedEntity = this._config[field.key] || "";
+    const states = anycubicEntityOptions(this._hass, field.domain);
+    const options = [
+      `<option value="">Auto-detect</option>`,
+      ...states.map((state) => `
+        <option value="${this._escapeAttribute(state.entity_id)}" ${state.entity_id === selectedEntity ? "selected" : ""}>
+          ${this._escape(state.attributes?.friendly_name || state.entity_id)}
+        </option>
+      `),
+    ];
+    if (selectedEntity && !states.some((state) => state.entity_id === selectedEntity)) {
+      options.push(`
+        <option value="${this._escapeAttribute(selectedEntity)}" selected>
+          ${this._escape(selectedEntity)}
+        </option>
+      `);
+    }
+    return `
+      <label class="field">
+        <span class="label">${this._escape(field.label)}</span>
+        <select data-key="${this._escapeAttribute(field.key)}">${options.join("")}</select>
       </label>
     `;
   }
@@ -528,7 +594,14 @@ class AnycubicKobraXCard extends HTMLElement {
             },
           },
         },
-        { name: "camera_entity", selector: { entity: { domain: "camera" } } },
+        ...ANYCUBIC_MANUAL_ENTITY_FIELDS.map((field) => ({
+          name: field.key,
+          selector: {
+            entity: {
+              ...(field.domain ? { domain: field.domain } : {}),
+            },
+          },
+        })),
         {
           name: "visible_stats",
           selector: {
@@ -602,8 +675,6 @@ class AnycubicKobraXCard extends HTMLElement {
             return "Hide preview when idle";
           case "media_view":
             return "Media view";
-          case "camera_entity":
-            return "Camera entity";
           case "visible_stats":
             return "Visible stats";
           case "stats_columns":
@@ -619,7 +690,8 @@ class AnycubicKobraXCard extends HTMLElement {
           case "show_stop_button":
             return "Show stop button";
           default:
-            return schema.name;
+            return ANYCUBIC_MANUAL_ENTITY_FIELDS.find((field) => field.key === schema.name)?.label
+              || schema.name;
         }
       },
     };
@@ -1537,7 +1609,7 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _findPrinterEntities(states) {
-    const matches = anycubicEntityMatches(states);
+    const matches = anycubicEntityMatches(states, this._hass);
     const keys = [
       "light",
       "last_will",
@@ -1569,6 +1641,10 @@ class AnycubicKobraXCard extends HTMLElement {
   }
 
   _findByKey(states, key) {
+    const registryMatch = states.find((state) => anycubicUniqueKey(state, this._hass) === key);
+    if (registryMatch) {
+      return registryMatch;
+    }
     if (key === "light") {
       return states.find((state) => state.entity_id?.startsWith("light."));
     }
@@ -2346,10 +2422,12 @@ class AnycubicKobraXCameraCard extends HTMLElement {
   }
 
   _findPrinterEntities(states) {
-    const matches = anycubicEntityMatches(states);
+    const matches = anycubicEntityMatches(states, this._hass);
     return {
-      camera: matches.find((state) => state.entity_id?.startsWith("camera.")),
-      light: matches.find((state) => state.entity_id?.startsWith("light.")),
+      camera: matches.find((state) => anycubicUniqueKey(state, this._hass) === "camera")
+        || matches.find((state) => state.entity_id?.startsWith("camera.")),
+      light: matches.find((state) => anycubicUniqueKey(state, this._hass) === "light")
+        || matches.find((state) => state.entity_id?.startsWith("light.")),
     };
   }
 
@@ -2948,8 +3026,11 @@ class AnycubicKobraXAxisCard extends HTMLElement {
   }
 
   _controlsAvailable() {
+    if (this._config.config_entry_id) {
+      return true;
+    }
     const states = Object.values(this._hass?.states || {});
-    const matches = anycubicEntityMatches(states);
+    const matches = anycubicEntityMatches(states, this._hass);
     return matches.length > 0 && matches.some((state) => state.state !== "unavailable");
   }
 

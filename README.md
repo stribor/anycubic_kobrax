@@ -85,8 +85,9 @@ This project is licensed under the MIT License. See [LICENSE](LICENSE).
 
 ## Dashboard card
 
-The main `anycubic-kobrax-card` auto-discovers the integration entities, but it
-can be made shorter with optional card settings:
+The main `anycubic-kobrax-card` auto-discovers the integration entities,
+including entities whose Home Assistant entity IDs were renamed. It can be made
+shorter with optional card settings:
 
 ```yaml
 type: custom:anycubic-kobrax-card
@@ -111,6 +112,25 @@ media_view: preview # preview, thumbnail, camera, or none
 camera_entity: camera.kobra_x_camera # optional when media_view is camera
 ```
 
+If auto-discovery is not enough for a custom setup, set the card entities
+manually:
+
+```yaml
+type: custom:anycubic-kobrax-card
+name: Kobra X
+printer_name: sensor.my_printer_name
+print_state: sensor.my_printer_status
+progress: sensor.my_printer_progress
+remaining_time: sensor.my_printer_remaining_time
+preview_image: image.my_printer_preview
+thumbnail_image: image.my_printer_thumbnail
+camera_entity: camera.my_printer_camera
+light: light.my_printer_light
+pause_print: button.my_printer_pause_print
+resume_print: button.my_printer_resume_print
+stop_print: button.my_printer_stop_print
+```
+
 For a small image-focused card, use compact layout. It hides the detailed stats
 and filament slots, keeps the printer/preview image, and shows either progress
 with remaining time or the idle/free status:
@@ -122,6 +142,24 @@ layout: compact
 progress_style: bar
 hide_preview_when_idle: true
 show_header: false
+```
+
+The standalone camera card also accepts manual entity IDs:
+
+```yaml
+type: custom:anycubic-kobrax-camera-card
+name: Kobra X Camera
+camera_entity: camera.my_printer_camera
+light_entity: light.my_printer_light
+```
+
+For the axis card, set `config_entry_id` when entity auto-discovery cannot find
+the renamed printer entities or when multiple printers are loaded:
+
+```yaml
+type: custom:anycubic-kobrax-axis-card
+name: Kobra X Axes
+config_entry_id: 0123456789abcdef0123456789abcdef
 ```
 
 ## Notifications and automations
