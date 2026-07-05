@@ -61,6 +61,10 @@ entries, debug captures, or logs without checking them for printer IDs, host
 addresses, stream tokens, MQTT credentials, client certificates, and client
 keys.
 
+## License
+
+This project is licensed under the MIT License. See [LICENSE](LICENSE).
+
 ## Implemented
 
 - MQTT connection to the printer on port `9883`
