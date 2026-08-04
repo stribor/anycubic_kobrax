@@ -54,6 +54,11 @@ class AnycubicKobraXCamera(AnycubicKobraXEntity, Camera):
         return None
 
     @property
+    def use_stream_for_stills(self) -> bool:
+        """Use the camera stream to generate snapshots."""
+        return True
+
+    @property
     def is_streaming(self) -> bool:
         """Return whether the printer reports video capture as active."""
         video_state = self.coordinator.data.get(ATTR_VIDEO_STATE)
