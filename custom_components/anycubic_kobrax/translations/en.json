@@ -182,6 +182,12 @@
       "print_status": {
         "name": "Print status"
       },
+      "printer_event_code": {
+        "name": "Printer event code"
+      },
+      "printer_event_error": {
+        "name": "Printer event error"
+      },
       "project_pause": {
         "name": "Project pause"
       },

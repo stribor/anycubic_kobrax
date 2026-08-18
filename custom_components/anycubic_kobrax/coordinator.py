@@ -98,6 +98,8 @@ from .const import (
     ATTR_PRINT_SPEED,
     ATTR_PRINT_SPEED_MODE,
     ATTR_PRINT_STATUS,
+    ATTR_PRINTER_EVENT_CODE,
+    ATTR_PRINTER_EVENT_ERROR,
     ATTR_PROJECT_PAUSE,
     ATTR_PROJECT_TYPE,
     ATTR_PROGRESS,
@@ -184,6 +186,20 @@ _FILAMENT_DENSITY_G_CM3 = {
     "tpu": 1.21,
 }
 _DEFAULT_FILAMENT_DENSITY_G_CM3 = _FILAMENT_DENSITY_G_CM3["pla"]
+_OK_ERROR_CODES = {0, 200}
+_PRINTER_EVENT_TYPES = {"event", "printerevent", "printer_event"}
+_ERROR_CODE_MESSAGES = {
+    10107: "Filament runout or break",
+    10115: "USB disk problem",
+    10409: "Device operation abnormal",
+    11412: "MCU disconnected from host",
+    11504: "Unknown filament in printhead",
+    11801: "Spaghetti detected",
+    11816: "Z-axis motor anomaly",
+    11819: "Motor cable fault",
+    11842: "Filament clogging or entanglement",
+    11854: "Retraction failure",
+}
 
 
 @dataclass(slots=True)
@@ -242,6 +258,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._requested_file_details: set[str] = set()
         self._event_sequence = 0
         self._last_axis_event_msgid: str | None = None
+        self._last_printer_event_state: str | None = None
         self._last_print_event_state: str | None = None
         self.latest_event: dict[str, Any] | None = None
         self.preview_image: bytes | None = None
@@ -696,6 +713,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             if "msg" in payload:
                 self._state[ATTR_AXIS_MESSAGE] = payload["msg"]
             self._record_axis_event(payload)
+        if message_type in _PRINTER_EVENT_TYPES or topic_tail in _PRINTER_EVENT_TYPES:
+            self._merge_printer_event_payload(payload, flat)
         if message_type in {"print", "buried"} or topic_tail in {"print", "buried"}:
             self._merge_print_payload(payload)
         if message_type == "file" or topic_tail == "file":
@@ -768,6 +787,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ),
             ATTR_PRINT_SPEED_MODE: ("print_speed_mode", "printSpeedMode"),
             ATTR_PRINT_STATUS: ("print_status", "printStatus"),
+            ATTR_PRINTER_EVENT_CODE: ("printer_event_code", "printerEventCode"),
             ATTR_PROJECT_PAUSE: ("pause",),
             ATTR_PROJECT_TYPE: ("project_type",),
             ATTR_Z_COMPENSATION: ("z_comp", "zComp", "z_offset", "zOffset"),
@@ -922,6 +942,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_PRINT_SPEED,
             ATTR_PRINT_SPEED_MODE,
             ATTR_PRINT_STATUS,
+            ATTR_PRINTER_EVENT_CODE,
             ATTR_PROJECT_PAUSE,
             ATTR_PROJECT_TYPE,
             ATTR_CAMERA_TIMELAPSE,
@@ -1215,6 +1236,41 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if filename := self._state.get(ATTR_FILENAME):
             self.request_file_details(str(filename), str(self._state.get(ATTR_FILE_ROOT, "local")))
 
+    def _merge_printer_event_payload(
+        self, payload: dict[str, Any], flat: dict[str, Any]
+    ) -> None:
+        """Merge the printer event code and derived readable error."""
+        code = _coerce_int(
+            _first_present(flat, ("code", "event_code", "eventCode", "printerEventCode"))
+        )
+        if code is None:
+            return
+
+        self._state[ATTR_PRINTER_EVENT_CODE] = code
+        if code in _OK_ERROR_CODES:
+            self._state.pop(ATTR_PRINTER_EVENT_ERROR, None)
+            return
+
+        error = _ERROR_CODE_MESSAGES.get(code, f"Unknown error code {code}")
+        self._state[ATTR_PRINTER_EVENT_ERROR] = error
+        event_state = f"{code}:{payload.get('msgid') or ''}"
+        if not payload.get("msgid"):
+            event_state = f"{code}:{_first_present(flat, ('msg', 'message')) or ''}"
+        if event_state == self._last_printer_event_state:
+            return
+        self._last_printer_event_state = event_state
+        self._record_event(
+            EVENT_PRINT_FAILED,
+            {
+                "state": _first_present(flat, ("state",)),
+                "action": _first_present(flat, ("action",)),
+                "code": code,
+                "message": _first_present(flat, ("msg", "message")),
+                "error": error,
+                "msgid": payload.get("msgid"),
+            },
+        )
+
     def _merge_info_payload(self, payload: dict[str, Any]) -> None:
         """Merge nested project data from info reports."""
         data = payload.get("data")
@@ -1274,7 +1330,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Record actionable axis errors as Home Assistant events."""
         code = _coerce_int(payload.get("code"))
         state = str(payload.get("state", "")).lower()
-        if state != "failed" and (code is None or code in {0, 200}):
+        if state != "failed" and (code is None or code in _OK_ERROR_CODES):
             return
 
         msgid = str(payload.get("msgid") or "")
@@ -1313,7 +1369,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             event_type = EVENT_PRINT_STOPPED
         elif state in {"failed", "error"} or (
             (code := _coerce_int(payload.get("code"))) is not None
-            and code not in {0, 200}
+            and code not in _OK_ERROR_CODES
         ):
             event_type = EVENT_PRINT_FAILED
 

@@ -88,6 +88,8 @@ from .const import (
     ATTR_PRINT_SPEED,
     ATTR_PRINT_SPEED_MODE,
     ATTR_PRINT_STATUS,
+    ATTR_PRINTER_EVENT_CODE,
+    ATTR_PRINTER_EVENT_ERROR,
     ATTR_PROJECT_PAUSE,
     ATTR_PROJECT_TYPE,
     ATTR_PROGRESS,
@@ -309,6 +311,16 @@ SENSORS = (
         translation_key="print_status",
         entity_category=EntityCategory.DIAGNOSTIC,
         entity_registry_enabled_default=False,
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_PRINTER_EVENT_CODE,
+        translation_key="printer_event_code",
+        icon="mdi:alert-circle-outline",
+    ),
+    AnycubicSensorDescription(
+        key=ATTR_PRINTER_EVENT_ERROR,
+        translation_key="printer_event_error",
+        icon=_ICON_NOZZLE_ALERT,
     ),
     AnycubicSensorDescription(
         key=ATTR_PROJECT_PAUSE,
