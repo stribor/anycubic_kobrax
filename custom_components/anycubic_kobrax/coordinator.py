@@ -167,6 +167,7 @@ from .const import (
     QUERY_SPECS,
     TOPIC_BASE,
 )
+from .error_codes import ANYCUBIC_ERROR_MESSAGES
 
 _LOGGER = logging.getLogger(__name__)
 _LIVE_URL_RE = re.compile(r"https?://[^\s\"']+/live/[A-Za-z0-9_-]+")
@@ -188,18 +189,6 @@ _FILAMENT_DENSITY_G_CM3 = {
 _DEFAULT_FILAMENT_DENSITY_G_CM3 = _FILAMENT_DENSITY_G_CM3["pla"]
 _OK_ERROR_CODES = {0, 200}
 _PRINTER_EVENT_TYPES = {"event", "printerevent", "printer_event"}
-_ERROR_CODE_MESSAGES = {
-    10107: "Filament runout or break",
-    10115: "USB disk problem",
-    10409: "Device operation abnormal",
-    11412: "MCU disconnected from host",
-    11504: "Unknown filament in printhead",
-    11801: "Spaghetti detected",
-    11816: "Z-axis motor anomaly",
-    11819: "Motor cable fault",
-    11842: "Filament clogging or entanglement",
-    11854: "Retraction failure",
-}
 
 
 @dataclass(slots=True)
@@ -1251,7 +1240,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._state.pop(ATTR_PRINTER_EVENT_ERROR, None)
             return
 
-        error = _ERROR_CODE_MESSAGES.get(code, f"Unknown error code {code}")
+        error = ANYCUBIC_ERROR_MESSAGES.get(code, f"Unknown error code {code}")
         self._state[ATTR_PRINTER_EVENT_ERROR] = error
         event_state = f"{code}:{payload.get('msgid') or ''}"
         if not payload.get("msgid"):
