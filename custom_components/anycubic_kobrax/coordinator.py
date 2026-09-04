@@ -895,7 +895,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                     _normalize_print_state(value) if attr == ATTR_PRINT_STATE else value
                 )
 
-        if message_type in {"print", "buried"} or topic_tail in {"print", "buried"}:
+        if (
+            message_type in {"print", "buried"} or topic_tail in {"print", "buried"}
+        ) and str(payload.get("action") or "").lower() != "getsliceparam":
             print_state = _first_present(flat, ("state", "action"))
             if print_state is not None:
                 self._state[ATTR_PRINT_STATE] = _normalize_print_state(print_state)
@@ -1153,7 +1155,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _merge_print_payload(self, payload: dict[str, Any]) -> None:
         """Merge print lifecycle and buried metadata."""
         state = payload.get("state")
-        if state:
+        if state and str(payload.get("action") or "").lower() != "getsliceparam":
             self._state[ATTR_PRINT_STATE] = _normalize_print_state(state)
 
         data = payload.get("data")
@@ -1343,6 +1345,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         """Record print lifecycle changes as Home Assistant events."""
         state = str(data.get("state") or payload.get("state") or "").lower()
         action = str(payload.get("action") or "").lower()
+        # Slice parameter replies describe a completed request, not a print.
+        if action == "getsliceparam":
+            return
         event_type: str | None = None
         if state in {"checking", "auto_leveling"} or action == "printstart":
             event_type = EVENT_PRINT_STARTED
