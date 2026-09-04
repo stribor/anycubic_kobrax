@@ -681,6 +681,16 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _merge_payload(self, topic: str, payload: dict[str, Any]) -> None:
         """Merge known Anycubic payload fields into normalized state."""
         candidates = payload.get("data")
+        if str(payload.get("action") or "").lower() == "getsliceparam":
+            # These are slice settings, not live telemetry or lifecycle states.
+            # In particular, nested remain_time must not replace live remaining time.
+            if (
+                _coerce_int(payload.get("code")) in _OK_ERROR_CODES
+                and isinstance(candidates, dict)
+                and isinstance(candidates.get("slice_param"), dict)
+            ):
+                self._state[ATTR_PRINT_PARAMS] = dict(candidates["slice_param"])
+            return
         if isinstance(candidates, dict):
             flat = _flatten(candidates)
         else:

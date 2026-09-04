@@ -162,6 +162,21 @@ name: Kobra X Axes
 config_entry_id: 0123456789abcdef0123456789abcdef
 ```
 
+## Slice parameters
+
+Enable the disabled-by-default **Print params** diagnostic sensor to inspect
+settings received in successful `getSliceParam` MQTT replies. Its state is
+`available`, with the latest received settings exposed as attributes, including
+layer height, infill density, perimeter count, temperatures, speeds, filament
+type, printer profile, and model dimensions when supplied by the printer.
+
+These are slice metadata, not live measurements. The reply's `remain_time` is
+preserved as a sensor attribute without changing the live remaining-time sensor.
+The integration listens for these replies but does not request them itself, so
+the sensor can remain unknown until another client, such as the slicer, requests
+the parameters. The settings describe the latest received reply and may persist
+until another reply arrives.
+
 ## Notifications and automations
 
 The integration does not send notifications by itself. Instead it exposes print

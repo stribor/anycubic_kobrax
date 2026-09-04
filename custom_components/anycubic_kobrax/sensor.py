@@ -668,7 +668,11 @@ class AnycubicKobraXSensor(AnycubicKobraXEntity, SensorEntity):
     @property
     def native_value(self) -> Any:
         """Return the native sensor value."""
-        return self.coordinator.data.get(self.entity_description.key)
+        value = self.coordinator.data.get(self.entity_description.key)
+        if self.entity_description.key == ATTR_PRINT_PARAMS and isinstance(value, dict):
+            # Keep structured settings out of HA's length-limited state string.
+            return "available"
+        return value
 
     @property
     def icon(self) -> str | None:
@@ -715,6 +719,9 @@ class AnycubicKobraXSensor(AnycubicKobraXEntity, SensorEntity):
         """Return diagnostic MQTT payload attributes."""
         if not self.entity_description.diagnostic_payload:
             key = self.entity_description.key
+            if key == ATTR_PRINT_PARAMS:
+                params = self.coordinator.data.get(key)
+                return dict(params) if isinstance(params, dict) else None
             if key in ATTR_SLOT_COLOR:
                 index = ATTR_SLOT_COLOR.index(key)
                 attrs: dict[str, Any] = {}
