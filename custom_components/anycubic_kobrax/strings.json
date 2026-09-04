@@ -433,6 +433,15 @@
       },
       "last_mqtt_message": {
         "name": "Last MQTT message"
+      },
+      "work_state": {
+        "name": "Work state"
+      },
+      "print_objects": {
+        "name": "Print objects"
+      },
+      "skipped_objects": {
+        "name": "Skipped objects"
       }
     },
     "light": {

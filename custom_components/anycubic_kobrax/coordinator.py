@@ -95,6 +95,10 @@ from .const import (
     ATTR_PRINTER_NAME,
     ATTR_PRINTER_TYPE,
     ATTR_PRINT_STATE,
+    ATTR_WORK_STATE,
+    ATTR_PRINT_OBJECTS,
+    ATTR_SKIPPED_OBJECTS,
+    ATTR_FILE_FILAMENTS,
     ATTR_PRINT_SPEED,
     ATTR_PRINT_SPEED_MODE,
     ATTR_PRINT_STATUS,
@@ -189,6 +193,11 @@ _FILAMENT_DENSITY_G_CM3 = {
 _DEFAULT_FILAMENT_DENSITY_G_CM3 = _FILAMENT_DENSITY_G_CM3["pla"]
 _OK_ERROR_CODES = {0, 200}
 _PRINTER_EVENT_TYPES = {"event", "printerevent", "printer_event"}
+_ACTIVE_PRINT_STATES = {
+    "checking", "auto_leveling", "preheating", "printing", "updated",
+    "pausing", "paused", "resuming", "resumed",
+}
+_SLICE_PARAM_INTERVAL = 60
 
 
 @dataclass(slots=True)
@@ -245,6 +254,8 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         self._raw_messages: dict[str, Any] = {}
         self._state: dict[str, Any] = self._initial_state()
         self._requested_file_details: set[str] = set()
+        self._last_slice_param_request: float | None = None
+        self._metadata_job: tuple[str, str] | None = None
         self._event_sequence = 0
         self._last_axis_event_msgid: str | None = None
         self._last_printer_event_state: str | None = None
@@ -355,7 +366,57 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
                 ) from err
         for source, query_type, action in QUERY_SPECS:
             self.publish_query(source, query_type, action)
+        self._request_slice_parameters_if_due()
         return dict(self._state)
+
+    def _request_slice_parameters_if_due(self) -> None:
+        """Refresh slice metadata at most once a minute during an active job."""
+        if (
+            not self._connected
+            or self._state.get(ATTR_PRINT_STATE) not in _ACTIVE_PRINT_STATES
+            or self._state.get(ATTR_WORK_STATE) == "free"
+        ):
+            return
+        now = time.monotonic()
+        if (
+            self._last_slice_param_request is not None
+            and now - self._last_slice_param_request < _SLICE_PARAM_INTERVAL
+        ):
+            return
+        self._publish(
+            f"{self.base_web_topic}/print",
+            self._payload(
+                "print",
+                "getSliceParam",
+                {"taskid": str(self._state.get(ATTR_TASK_ID) or "-1")},
+            ),
+        )
+        self._last_slice_param_request = now
+
+    def _prepare_print_metadata(self, data: dict[str, Any], state: str) -> None:
+        """Discard previous job metadata when a new active print is observed."""
+        if state not in _ACTIVE_PRINT_STATES:
+            return
+        job = (
+            str(
+                data.get("taskid") or data.get("task_id")
+                or self._state.get(ATTR_TASK_ID) or "-1"
+            ),
+            str(data.get("filename") or self._state.get(ATTR_FILENAME) or ""),
+        )
+        if (
+            self._metadata_job != job
+            or self._state.get(ATTR_PRINT_STATE) not in _ACTIVE_PRINT_STATES
+        ):
+            for key in (
+                ATTR_PRINT_PARAMS, ATTR_PRINT_OBJECTS, ATTR_SKIPPED_OBJECTS,
+                ATTR_FILE_FILAMENTS, ATTR_ESTIMATE_WEIGHT,
+            ):
+                self._state.pop(key, None)
+            self._requested_file_details.clear()
+            self._last_slice_param_request = None
+            self._metadata_job = job
+        self._state[ATTR_WORK_STATE] = "busy"
 
     def publish_query(self, source: str, query_type: str, action: str) -> None:
         """Publish a query command for a specific Anycubic topic type."""
@@ -672,6 +733,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         if isinstance(payload, dict):
             self._merge_payload(topic, payload)
+        # Push updates can postpone the coordinator's scheduled refresh, so
+        # check the same monotonic rate limit on incoming MQTT messages too.
+        self._request_slice_parameters_if_due()
         if stream_url := self._extract_stream_url(text, payload):
             self._state[ATTR_STREAM_URL] = stream_url
 
@@ -680,6 +744,9 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     @callback
     def _merge_payload(self, topic: str, payload: dict[str, Any]) -> None:
         """Merge known Anycubic payload fields into normalized state."""
+        # We also subscribe to client command topics. Requests are not telemetry.
+        if "/web/printer/" in topic or "/slicer/printer/" in topic:
+            return
         candidates = payload.get("data")
         if str(payload.get("action") or "").lower() == "getsliceparam":
             # These are slice settings, not live telemetry or lifecycle states.
@@ -699,10 +766,36 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
 
         message_type = str(payload.get("type", "")).lower()
         topic_tail = topic.rsplit("/", maxsplit=1)[-1].lower()
+        action = str(payload.get("action") or "").lower()
+        if message_type == "print" and (action.startswith("get") or action == "query"):
+            return
+        if message_type == "status" and action == "workreport":
+            if payload.get("state"):
+                self._state[ATTR_WORK_STATE] = payload["state"]
+            return
+        if message_type == "skip":
+            if (
+                action == "query_obj"
+                and _coerce_int(payload.get("code")) in _OK_ERROR_CODES
+                and isinstance(candidates, dict)
+                and isinstance(candidates.get("objects_skip_parts"), list)
+            ):
+                self._state[ATTR_SKIPPED_OBJECTS] = list(
+                    candidates["objects_skip_parts"]
+                )
+            return
         if message_type == "lastwill" or topic_tail == "lastwill":
             self._state[ATTR_LAST_WILL] = _coerce_last_will(flat or all_flat)
         if message_type == "multicolorbox" or topic_tail == "multicolorbox":
             self._merge_multi_color_box(payload)
+            # Nested box timers, type IDs and slot values are not print fields.
+            flat = (
+                {
+                    key: value for key, value in candidates.items()
+                    if not isinstance(value, (dict, list))
+                }
+                if isinstance(candidates, dict) else {}
+            )
         if message_type == "video" or topic_tail == "video":
             self._state[ATTR_VIDEO_STATE] = payload.get("state") or payload.get("action")
         if message_type == "axis" or topic_tail == "axis":
@@ -718,6 +811,13 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             self._merge_print_payload(payload)
         if message_type == "file" or topic_tail == "file":
             self._merge_file_payload(payload)
+            flat = (
+                _flatten({
+                    key: value for key, value in candidates.items()
+                    if key != "file_details"
+                })
+                if isinstance(candidates, dict) else {}
+            )
 
         field_map = {
             ATTR_PRINT_STATE: (
@@ -895,6 +995,12 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             ATTR_VIBRATION_COMPENSATION_SUPPORT: ("vibration_compensation_support",),
         }
         for attr, keys in field_map.items():
+            if (
+                attr in {ATTR_TASK_ID, ATTR_TOTAL_TIME, ATTR_REMAINING_TIME}
+                and message_type not in {"print", "info", "buried"}
+                and topic_tail not in {"print", "info", "buried"}
+            ):
+                continue
             if attr == ATTR_TOTAL_TIME and "print_time" in flat:
                 continue
             value = _first_present(flat, keys)
@@ -908,7 +1014,7 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if (
             message_type in {"print", "buried"} or topic_tail in {"print", "buried"}
         ) and str(payload.get("action") or "").lower() != "getsliceparam":
-            print_state = _first_present(flat, ("state", "action"))
+            print_state = flat.get("state")
             if print_state is not None:
                 self._state[ATTR_PRINT_STATE] = _normalize_print_state(print_state)
 
@@ -1114,16 +1220,23 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
             return
         self._merge_preview_image(details)
         paint_infos = details.get("paint_infos")
-        if isinstance(paint_infos, list) and paint_infos:
-            paint_info = paint_infos[0]
-            if isinstance(paint_info, dict):
-                material = paint_info.get("material_type")
-                if material:
-                    self._state[ATTR_MATERIAL] = material
-                if paint_info.get("filament_used") is not None:
-                    self._state[ATTR_FILAMENT_USED] = paint_info["filament_used"]
-                    if self._state.get(ATTR_ESTIMATE_WEIGHT) is None:
-                        self._state[ATTR_ESTIMATE_WEIGHT] = paint_info["filament_used"]
+        if isinstance(paint_infos, list):
+            filaments = [dict(item) for item in paint_infos if isinstance(item, dict)]
+            self._state[ATTR_FILE_FILAMENTS] = filaments
+            weights = [_coerce_float(item.get("filament_used")) for item in filaments]
+            if weights and all(
+                weight is not None and weight >= 0 for weight in weights
+            ):
+                self._state[ATTR_ESTIMATE_WEIGHT] = round(sum(weights), 3)
+            materials = sorted({
+                str(item["material_type"]) for item in filaments
+                if item.get("material_type")
+            })
+            if materials:
+                self._state[ATTR_MATERIAL] = ", ".join(materials)
+        objects = details.get("objects_skip_parts")
+        if isinstance(objects, list):
+            self._state[ATTR_PRINT_OBJECTS] = list(objects)
 
     def _merge_preview_image(self, details: dict[str, Any]) -> None:
         """Keep the newest file preview in memory without storing it in state."""
@@ -1165,6 +1278,11 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
     def _merge_print_payload(self, payload: dict[str, Any]) -> None:
         """Merge print lifecycle and buried metadata."""
         state = payload.get("state")
+        data = payload.get("data")
+        if isinstance(data, dict):
+            self._prepare_print_metadata(
+                data, str(data.get("state") or state or "").lower()
+            )
         if state and str(payload.get("action") or "").lower() != "getsliceparam":
             self._state[ATTR_PRINT_STATE] = _normalize_print_state(state)
 
@@ -1278,9 +1396,13 @@ class AnycubicKobraXCoordinator(DataUpdateCoordinator[dict[str, Any]]):
         if not isinstance(data, dict):
             return
 
+        if data.get("state"):
+            self._state[ATTR_WORK_STATE] = data["state"]
         project = data.get("project")
         if not isinstance(project, dict):
             return
+
+        self._prepare_print_metadata(project, str(project.get("state") or "").lower())
 
         mappings = {
             ATTR_PRINT_STATE: ("state",),

@@ -172,10 +172,24 @@ type, printer profile, and model dimensions when supplied by the printer.
 
 These are slice metadata, not live measurements. The reply's `remain_time` is
 preserved as a sensor attribute without changing the live remaining-time sensor.
-The integration listens for these replies but does not request them itself, so
-the sensor can remain unknown until another client, such as the slicer, requests
-the parameters. The settings describe the latest received reply and may persist
-until another reply arrives.
+The integration requests parameters when it observes an active job, then at most
+once every 60 seconds while preparing, printing, or paused. It stops requesting
+them when the print ends or the printer reports that it is free. Replies from
+other clients are also accepted. Settings remain available after completion and
+are cleared when a new job is observed.
+
+The **Estimated weight** sensor totals the file's per-color filament estimates;
+its `filaments` attribute preserves each entry's index, color, material, and
+reported usage. File estimates do not overwrite the live **Filament used** sensor.
+The **Print objects** sensor counts the objects listed in file metadata and exposes
+their identifiers in its `objects` attribute. **Skipped objects** similarly exposes
+the latest `skip/query_obj` reply; it stays unknown until a reply is received.
+These sensors provide visibility only; skipping an object is not yet supported.
+
+**Work state** exposes printer availability such as `free` (and `busy` when an
+active print is observed), separately from **Print state**, which retains the
+last print result after completion. Client requests and peripheral timers do not
+change the print's state or elapsed time.
 
 ## Notifications and automations
 

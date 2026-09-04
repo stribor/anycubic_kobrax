@@ -85,6 +85,10 @@ from .const import (
     ATTR_PRINTER_NAME,
     ATTR_PRINTER_TYPE,
     ATTR_PRINT_STATE,
+    ATTR_WORK_STATE,
+    ATTR_PRINT_OBJECTS,
+    ATTR_SKIPPED_OBJECTS,
+    ATTR_FILE_FILAMENTS,
     ATTR_PRINT_SPEED,
     ATTR_PRINT_SPEED_MODE,
     ATTR_PRINT_STATUS,
@@ -159,6 +163,9 @@ SENSORS = (
         icon=_ICON_PRINTER_3D,
     ),
     AnycubicSensorDescription(key=ATTR_AXIS_STATE, translation_key="axis_state"),
+    AnycubicSensorDescription(key=ATTR_WORK_STATE, translation_key="work_state"),
+    AnycubicSensorDescription(key=ATTR_PRINT_OBJECTS, translation_key="print_objects"),
+    AnycubicSensorDescription(key=ATTR_SKIPPED_OBJECTS, translation_key="skipped_objects"),
     AnycubicSensorDescription(key=ATTR_AXIS_CODE, translation_key="axis_code"),
     AnycubicSensorDescription(key=ATTR_AXIS_MESSAGE, translation_key="axis_message"),
     AnycubicSensorDescription(
@@ -669,6 +676,8 @@ class AnycubicKobraXSensor(AnycubicKobraXEntity, SensorEntity):
     def native_value(self) -> Any:
         """Return the native sensor value."""
         value = self.coordinator.data.get(self.entity_description.key)
+        if self.entity_description.key in {ATTR_PRINT_OBJECTS, ATTR_SKIPPED_OBJECTS}:
+            return len(value) if isinstance(value, list) else None
         if self.entity_description.key == ATTR_PRINT_PARAMS and isinstance(value, dict):
             # Keep structured settings out of HA's length-limited state string.
             return "available"
@@ -719,6 +728,12 @@ class AnycubicKobraXSensor(AnycubicKobraXEntity, SensorEntity):
         """Return diagnostic MQTT payload attributes."""
         if not self.entity_description.diagnostic_payload:
             key = self.entity_description.key
+            if key in {ATTR_PRINT_OBJECTS, ATTR_SKIPPED_OBJECTS}:
+                objects = self.coordinator.data.get(key)
+                return {"objects": list(objects)} if isinstance(objects, list) else None
+            if key == ATTR_ESTIMATE_WEIGHT:
+                filaments = self.coordinator.data.get(ATTR_FILE_FILAMENTS)
+                return {"filaments": filaments} if isinstance(filaments, list) else None
             if key == ATTR_PRINT_PARAMS:
                 params = self.coordinator.data.get(key)
                 return dict(params) if isinstance(params, dict) else None
