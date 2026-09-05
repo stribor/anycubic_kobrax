@@ -10,6 +10,7 @@ from homeassistant.components.sensor import (
     SensorDeviceClass,
     SensorEntity,
     SensorEntityDescription,
+    SensorStateClass,
 )
 from homeassistant.config_entries import ConfigEntry
 from homeassistant.const import PERCENTAGE, UnitOfTemperature
@@ -374,12 +375,14 @@ SENSORS = (
         device_class=SensorDeviceClass.TEMPERATURE,
         icon=_ICON_NOZZLE_HEAT,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         key=ATTR_BED_TEMP,
         translation_key="bed_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         key=ATTR_TARGET_NOZZLE_TEMP,
@@ -387,22 +390,26 @@ SENSORS = (
         device_class=SensorDeviceClass.TEMPERATURE,
         icon=_ICON_NOZZLE_HEAT_OUTLINE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         key=ATTR_TARGET_BED_TEMP,
         translation_key="target_bed_temperature",
         device_class=SensorDeviceClass.TEMPERATURE,
         native_unit_of_measurement=UnitOfTemperature.CELSIUS,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         key=ATTR_FAN_SPEED,
         translation_key="fan_speed",
         native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         key=ATTR_AUX_FAN_SPEED,
         translation_key="aux_fan_speed",
         native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         key=ATTR_BOX_FAN_SPEED,
