@@ -32,6 +32,7 @@ class DescriptionStub:
     icon: str | None = None
     device_class: str | None = None
     native_unit_of_measurement: str | None = None
+    state_class: str | None = None
     entity_category: str | None = None
     entity_registry_enabled_default: bool = True
 
@@ -57,6 +58,7 @@ def load_modules():
             "SensorDeviceClass": SimpleNamespace(TEMPERATURE="temperature"),
             "SensorEntity": type("SensorEntity", (), {}),
             "SensorEntityDescription": DescriptionStub,
+            "SensorStateClass": SimpleNamespace(MEASUREMENT="measurement"),
         },
     }
     modules = {}
@@ -185,6 +187,21 @@ class ProtocolTests(unittest.TestCase):
         self.assertEqual(sensor.extra_state_attributes, {"objects": ["first", "second"]})
         sensor.entity_description = next(s for s in sensor_module.SENSORS if s.key == "estimate_weight")
         self.assertEqual(sensor.extra_state_attributes, {"filaments": [{"paint_index": 0}]})
+
+    def test_printer_telemetry_has_measurement_state_class(self):
+        measurement_sensors = {
+            "nozzle_temperature",
+            "bed_temperature",
+            "target_nozzle_temperature",
+            "target_bed_temperature",
+            "fan_speed",
+            "aux_fan_speed",
+        }
+        descriptions = {
+            description.key: description for description in sensor_module.SENSORS
+        }
+        for key in measurement_sensors:
+            self.assertEqual(descriptions[key].state_class, "measurement")
 
 
 if __name__ == "__main__":
