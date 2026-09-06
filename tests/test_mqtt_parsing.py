@@ -190,6 +190,8 @@ class ProtocolTests(unittest.TestCase):
 
     def test_printer_telemetry_has_measurement_state_class(self):
         measurement_sensors = {
+            "progress",
+            "filament_used",
             "nozzle_temperature",
             "bed_temperature",
             "target_nozzle_temperature",

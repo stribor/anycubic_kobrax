@@ -211,6 +211,7 @@ SENSORS = (
         key=ATTR_PROGRESS,
         translation_key="progress",
         native_unit_of_measurement=PERCENTAGE,
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(key=ATTR_FILENAME, translation_key="filename"),
     AnycubicSensorDescription(key=ATTR_TASK_ID, translation_key="task_id"),
@@ -229,6 +230,7 @@ SENSORS = (
         key=ATTR_FILAMENT_USED,
         translation_key="filament_used",
         native_unit_of_measurement="g",
+        state_class=SensorStateClass.MEASUREMENT,
     ),
     AnycubicSensorDescription(
         key=ATTR_SUPPLIES_USAGE,
